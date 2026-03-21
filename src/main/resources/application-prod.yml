@@ -1,0 +1,20 @@
+# ============================================================
+# PROD 正式環境 — Real Bedrock, Prod database, Real OpenSearch
+# PROD profile — Real Bedrock, Prod DB, Real OpenSearch
+# ============================================================
+
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASS}
+    driver-class-name: ${DB_DRIVER:com.mysql.cj.jdbc.Driver}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+
+logging:
+  level:
+    com.nlq: WARN
+    root: INFO
