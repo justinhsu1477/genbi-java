@@ -12,22 +12,13 @@ import java.util.Map;
 
 /**
  * Profile 管理服務 Mock 實作（僅 dev 環境）
- * Mock profile service — returns a hardcoded demo profile (dev profile only)
- *
- * 對應 Python: ProfileManagement, ConnectionManagement, LogManagement
  */
 @Slf4j
 @Service
 @Profile("dev")
 public class MockProfileService implements ProfileService {
 
-    /**
-     * 回傳假的 profile 資料 (指向 Docker MySQL)
-     * Return fake profile data (points to Docker MySQL)
-     *
-     * Python 原始: ProfileManagement.get_all_profiles_with_info()
-     * 每個 profile 包含: tables_info (DDL), hints, prompt_map, db_url, db_type, conn_name 等
-     */
+    /** 回傳假的 profile 資料（指向 Docker MySQL） */
     @Override
     public Map<String, Map<String, Object>> getAllProfiles() {
         Map<String, Object> demoProfile = new HashMap<>();
@@ -59,24 +50,14 @@ public class MockProfileService implements ProfileService {
         return Map.of("demo-profile", demoProfile);
     }
 
-    /**
-     * 回傳假的歷史查詢
-     * Return fake query history
-     *
-     * Python 原始: LogManagement.get_history_by_session()
-     */
+    /** 回傳假的歷史查詢 */
     @Override
     public List<String> getHistoryBySession(String profileName, String userId, String sessionId, int size) {
         log.info("[Mock Profile] getHistoryBySession: user={}, session={}", userId, sessionId);
-        return new ArrayList<>(); // 空歷史 empty history
+        return new ArrayList<>(); // 空歷史
     }
 
-    /**
-     * 假的記錄儲存 (只印 log)
-     * Fake log save — just print log
-     *
-     * Python 原始: LogManagement.add_log_to_database()
-     */
+    /** 假的記錄儲存（只印 log） */
     @Override
     public void addLog(String logId, String userId, String sessionId, String profileName,
                        String sql, String query, String intent, String logInfo) {

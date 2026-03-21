@@ -9,30 +9,19 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * LLM 服務的 Mock 實作 - 回傳寫死的假資料（僅 dev 環境）
- * Mock implementation of LlmService — returns hardcoded fake data (dev profile only)
- *
- * 用途：讓整個 WebSocket 流程能跑通，不需要真的呼叫 AWS Bedrock
- * Purpose: make the full WebSocket flow work without real AWS Bedrock calls
- *
- * 對應 Python: utils/llm.py
+ * LLM 服務 Mock 實作 — 回傳寫死的假資料，讓 WebSocket 流程能跑通（僅 dev 環境）
  */
 @Slf4j
 @Service
 @Profile("dev")
 public class MockLlmService implements LlmService {
 
-    /**
-     * Mock 意圖識別 - 根據查詢關鍵字決定意圖
-     * Mock intent recognition — decide intent based on keywords
-     *
-     * Python 原始: get_query_intent() -> {"intent": "...", "slot": [...]}
-     */
+    /** Mock 意圖識別 — 根據查詢關鍵字決定意圖 */
     @Override
     public Map<String, Object> getQueryIntent(String modelId, String query, Map<String, Object> promptMap) {
         log.info("[Mock LLM] getQueryIntent: query={}", query);
 
-        // 根據關鍵字模擬不同意圖 simulate different intents by keywords
+        // 根據關鍵字模擬不同意圖
         String intent;
         if (query.toLowerCase().contains("what is") || query.toLowerCase().contains("explain")) {
             intent = "knowledge_search";
@@ -48,18 +37,13 @@ public class MockLlmService implements LlmService {
         );
     }
 
-    /**
-     * Mock 查詢改寫 - 簡單加上時間範圍
-     * Mock query rewrite — simply add time range context
-     *
-     * Python 原始: get_query_rewrite() -> {"intent": "normal|ask_in_reply", "query": "..."}
-     */
+    /** Mock 查詢改寫 — 簡單加上上下文 */
     @Override
     public Map<String, Object> getQueryRewrite(String modelId, String query,
                                                 Map<String, Object> promptMap, List<String> history) {
         log.info("[Mock LLM] getQueryRewrite: query={}, historySize={}", query, history.size());
 
-        // 模擬改寫：加上上下文 simulate rewrite with context
+        // 模擬改寫：加上上下文
         String rewritten = history.isEmpty() ? query : query + " (based on recent conversation)";
 
         return Map.of(
@@ -68,20 +52,14 @@ public class MockLlmService implements LlmService {
         );
     }
 
-    /**
-     * Mock Text-to-SQL - 根據查詢生成假 SQL
-     * Mock text to SQL — generate fake SQL based on query keywords
-     *
-     * Python 原始: text_to_sql() -> (response_text, model_response)
-     * 回傳格式含 <sql> 標籤 return format includes <sql> tags
-     */
+    /** Mock Text-to-SQL — 根據查詢關鍵字生成假 SQL，回傳格式含 &lt;sql&gt; 標籤 */
     @Override
     public String textToSql(String tablesInfo, String hints, Map<String, Object> promptMap,
                             String query, String modelId, List<Object> sqlExamples,
                             List<Object> nerExamples, String dialect) {
         log.info("[Mock LLM] textToSql: query={}, dialect={}", query, dialect);
 
-        // 根據關鍵字生成不同的假 SQL generate different fake SQL by keywords
+        // 根據關鍵字生成不同的假 SQL
         String sql;
         if (query.toLowerCase().contains("total") || query.toLowerCase().contains("sum")) {
             sql = "SELECT SUM(amount) AS total_amount FROM orders";
@@ -95,29 +73,18 @@ public class MockLlmService implements LlmService {
             sql = "SELECT * FROM orders ORDER BY created_at DESC LIMIT 10";
         }
 
-        // 模擬 LLM 回傳格式 (含解釋 + SQL 標籤)
-        // Simulate LLM response format (with explanation + SQL tags)
+        // 模擬 LLM 回傳格式（含解釋 + SQL 標籤）
         return "Based on the user's question, I need to query the orders table.\n<sql>" + sql + "</sql>";
     }
 
-    /**
-     * Mock 知識搜索 - 直接回答
-     * Mock knowledge search — direct answer
-     *
-     * Python 原始: knowledge_search() -> (response_text, model_response)
-     */
+    /** Mock 知識搜索 — 直接回答 */
     @Override
     public String knowledgeSearch(String query, String modelId, Map<String, Object> promptMap) {
         log.info("[Mock LLM] knowledgeSearch: query={}", query);
         return "This is a mock knowledge response. In the real system, the LLM would answer: " + query;
     }
 
-    /**
-     * Mock 數據分析 - 產生假的 insights
-     * Mock data analysis — generate fake insights
-     *
-     * Python 原始: data_analyse_tool() -> (response_text, model_response)
-     */
+    /** Mock 數據分析 — 產生假的 insights */
     @Override
     public String dataAnalyse(String modelId, Map<String, Object> promptMap,
                               String query, String dataJson, String type) {
@@ -126,13 +93,7 @@ public class MockLlmService implements LlmService {
                 + "Key observations: data retrieved successfully from the database.";
     }
 
-    /**
-     * Mock Agent 任務拆解 - 拆成兩個子任務
-     * Mock agent task split — split into 2 sub-tasks
-     *
-     * Python 原始: get_agent_cot_task() -> (task_dict, model_response)
-     * 回傳格式: {"task_1": "...", "task_2": "..."}
-     */
+    /** Mock Agent 任務拆解 — 拆成兩個子任務 */
     @Override
     public Map<String, Object> getAgentCotTask(String modelId, Map<String, Object> promptMap,
                                                 String query, String tablesInfo, List<Object> agentExamples) {
@@ -143,12 +104,7 @@ public class MockLlmService implements LlmService {
         );
     }
 
-    /**
-     * Mock 生成建議問題
-     * Mock suggested question generation
-     *
-     * Python 原始: generate_suggested_question()
-     */
+    /** Mock 生成建議問題 */
     @Override
     public List<String> generateSuggestedQuestions(Map<String, Object> promptMap, String query, String modelId) {
         log.info("[Mock LLM] generateSuggestedQuestions: query={}", query);
@@ -159,12 +115,7 @@ public class MockLlmService implements LlmService {
         );
     }
 
-    /**
-     * Mock 數據可視化類型選擇
-     * Mock data visualization type selection
-     *
-     * Python 原始: data_visualization() -> (show_type, data, chart_type, chart_data, model_response)
-     */
+    /** Mock 數據可視化類型選擇 */
     @Override
     public Map<String, Object> dataVisualization(String modelId, String query,
                                                   List<Object> sqlData, Map<String, Object> promptMap) {
@@ -174,7 +125,7 @@ public class MockLlmService implements LlmService {
             return Map.of("showType", "table", "chartType", "-1", "chartData", List.of());
         }
 
-        // 假設有多筆資料就用 bar chart simulate bar chart for multiple rows
+        // 假設有多筆資料就用 bar chart
         return Map.of(
                 "showType", "bar",
                 "chartType", "bar",

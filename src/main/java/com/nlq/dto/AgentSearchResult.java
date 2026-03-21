@@ -4,11 +4,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 /**
- * Agent 搜索結果 (多子任務匯總)
- * Agent search result — aggregated from multiple sub-tasks
+ * Agent 搜索結果（多子任務匯總）
  *
- * @param agentSqlSearchResult 各子任務結果列表 list of sub-task results
- * @param agentSummary         Agent 匯總分析 summary of all sub-task data
+ * @param agentSqlSearchResult 各子任務結果列表
+ * @param agentSummary         匯總分析
  */
 public record AgentSearchResult(
         @JsonProperty("agent_sql_search_result") List<TaskSqlSearchResult> agentSqlSearchResult,

@@ -5,9 +5,6 @@ import jakarta.validation.constraints.Pattern;
 
 /**
  * 用戶回饋請求 DTO
- * User feedback request for POST /qa/feedback
- *
- * 對應 Python: /qa/user_feedback endpoint
  */
 public record FeedbackRequest(
         @NotBlank(message = "sessionId 不能為空 / sessionId is required")

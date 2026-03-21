@@ -15,12 +15,6 @@ import java.util.List;
 
 /**
  * QA REST Controller — GenBI 的 CRUD 端點
- * QA REST endpoints for GenBI
- *
- * 對應 Python: api/main.py 的 REST 路由
- * Maps to Python's api/main.py REST routes
- *
- * API 設計參照 docs/api-review.txt 的重構方案
  */
 @RestController
 @RequestMapping("/qa")
@@ -35,19 +29,14 @@ public class QaController {
 
     // ===== GET /qa/option =====
 
-    /**
-     * 取得可用的 profile 和模型列表
-     * Get available profiles and model list
-     *
-     * 對應 Python: /qa/option
-     */
+    /** 取得可用的 profile 和模型列表 */
     @GetMapping("/option")
     @Operation(summary = "取得選項 / Get options", description = "返回可用 profile 和模型列表")
     public ApiResponse<OptionResponse> getOption() {
         var profiles = profileService.getAllProfiles();
         List<String> profileNames = List.copyOf(profiles.keySet());
 
-        // 目前支援的 Bedrock 模型 currently supported models
+        // 目前支援的 Bedrock 模型
         List<String> models = List.of(
                 "anthropic.claude-3-5-sonnet-20241022-v2:0",
                 "anthropic.claude-3-sonnet-20240229-v1:0",
@@ -59,12 +48,7 @@ public class QaController {
 
     // ===== GET /qa/sessions =====
 
-    /**
-     * 取得用戶的所有 session
-     * Get all sessions for a user
-     *
-     * 對應 Python: /qa/get_sessions
-     */
+    /** 取得用戶的所有 session */
     @GetMapping("/sessions")
     @Operation(summary = "取得 Session 列表 / Get sessions")
     public ApiResponse<List<SessionResponse>> getSessions(@RequestParam String userId) {
@@ -73,12 +57,7 @@ public class QaController {
 
     // ===== GET /qa/sessions/{sessionId} =====
 
-    /**
-     * 取得 session 內的所有訊息
-     * Get all messages in a session
-     *
-     * 對應 Python: /qa/get_history_by_session
-     */
+    /** 取得 session 內的所有訊息 */
     @GetMapping("/sessions/{sessionId}")
     @Operation(summary = "取得 Session 訊息 / Get session messages")
     public ApiResponse<List<MessageResponse>> getSessionMessages(@PathVariable String sessionId) {
@@ -87,12 +66,7 @@ public class QaController {
 
     // ===== DELETE /qa/sessions/{sessionId} =====
 
-    /**
-     * 刪除 session 及其所有訊息
-     * Delete a session and all its messages
-     *
-     * 對應 Python: /qa/delete_history_by_session
-     */
+    /** 刪除 session 及其所有訊息 */
     @DeleteMapping("/sessions/{sessionId}")
     @Operation(summary = "刪除 Session / Delete session")
     public ApiResponse<Void> deleteSession(@PathVariable String sessionId) {
@@ -102,12 +76,7 @@ public class QaController {
 
     // ===== POST /qa/feedback =====
 
-    /**
-     * 提交用戶回饋（讚/踩）
-     * Submit user feedback (upvote/downvote)
-     *
-     * 對應 Python: /qa/user_feedback
-     */
+    /** 提交用戶回饋（讚/踩） */
     @PostMapping("/feedback")
     @Operation(summary = "提交回饋 / Submit feedback")
     public ApiResponse<Void> submitFeedback(@Valid @RequestBody FeedbackRequest request) {

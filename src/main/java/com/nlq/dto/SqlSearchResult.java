@@ -5,14 +5,13 @@ import java.util.List;
 
 /**
  * SQL 搜索結果
- * SQL search result — contains generated SQL, execution data, insights
  *
- * @param sql           生成的 SQL the generated SQL
- * @param sqlData       SQL 執行結果 query result rows
- * @param dataShowType  展示方式 display type (table/chart)
- * @param sqlGenProcess SQL 生成過程說明 explanation of SQL generation
- * @param dataAnalyse   數據分析結論 data analysis insights
- * @param sqlDataChart  圖表數據 chart entities
+ * @param sql           生成的 SQL
+ * @param sqlData       SQL 執行結果
+ * @param dataShowType  展示方式 (table/chart)
+ * @param sqlGenProcess SQL 生成過程說明
+ * @param dataAnalyse   數據分析結論
+ * @param sqlDataChart  圖表數據
  */
 public record SqlSearchResult(
         String sql,

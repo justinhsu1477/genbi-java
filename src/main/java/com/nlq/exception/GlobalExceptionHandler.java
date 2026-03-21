@@ -12,15 +12,12 @@ import java.util.stream.Collectors;
 
 /**
  * 全域例外處理 — 統一攔截所有 Controller 異常
- * Global exception handler — catches all controller exceptions uniformly
  */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    /**
-     * 業務邏輯異常 Business exception
-     */
+    /** 業務邏輯異常 */
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException e) {
         log.warn("[Business] code={}, message={}", e.getCode(), e.getMessage());
@@ -29,9 +26,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(e.getCode(), e.getMessage()));
     }
 
-    /**
-     * 參數驗證失敗 Bean Validation errors (@Valid)
-     */
+    /** 參數驗證失敗 (@Valid) */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleValidation(MethodArgumentNotValidException e) {
         String details = e.getBindingResult().getFieldErrors().stream()
@@ -43,9 +38,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.badRequest(details));
     }
 
-    /**
-     * 缺少必要參數 Missing request parameter
-     */
+    /** 缺少必要參數 */
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ApiResponse<Void>> handleMissingParam(MissingServletRequestParameterException e) {
         log.warn("[MissingParam] {}", e.getMessage());
@@ -54,9 +47,7 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.badRequest("Missing parameter: " + e.getParameterName()));
     }
 
-    /**
-     * 兜底：未預期的異常 Fallback for unexpected exceptions
-     */
+    /** 兜底：未預期的異常 */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleAll(Exception e) {
         log.error("[Unexpected] {}", e.getMessage(), e);

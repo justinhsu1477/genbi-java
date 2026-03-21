@@ -8,14 +8,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 最終回答 - 包含所有查詢結果
- * Final answer — contains all query results
+ * 最終回答 — 包含所有查詢結果
  *
- * record 是 immutable 的，但 Answer 在狀態機中需要不斷更新
- * 所以用 mutable class + @Data，sub-results 用 record
- *
- * Answer is mutable because the state machine updates it step by step.
- * Sub-results use records since they are set once.
+ * 狀態機中需要不斷更新，所以用 mutable class + @Data；sub-results 用 record。
  */
 @Data
 public class Answer {

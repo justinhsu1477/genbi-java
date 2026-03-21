@@ -10,10 +10,9 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.*;
 
 /**
- * 查詢狀態機 - 核心流程控制
- * Query state machine — core flow controller
+ * 查詢狀態機 — 核心流程控制
  *
- * 流程概覽 Flow overview:
+ * 流程概覽:
  * INITIAL -> (Query Rewrite) -> INTENT_RECOGNITION
  *   ├── reject_search   -> REJECT_INTENT -> COMPLETE
  *   ├── knowledge_search -> KNOWLEDGE_SEARCH -> COMPLETE
@@ -22,31 +21,31 @@ import java.util.*;
  *                            ├── (同名實體) -> ASK_ENTITY_SELECT -> COMPLETE
  *                            └── -> ANALYZE_DATA -> COMPLETE
  *
- * 完成後 After COMPLETE: DATA_VISUALIZATION, SUGGEST_QUESTION, ADD_LOG
+ * 完成後: DATA_VISUALIZATION, SUGGEST_QUESTION, ADD_LOG
  */
 @Slf4j
 public class QueryStateMachine {
 
-    // 狀態 current state
+    // 當前狀態
     private QueryState state;
     private final QueryState previousState;
 
-    // 上下文和結果 context & answer
+    // 上下文和結果
     private final ProcessingContext context;
     private final Answer answer = new Answer();
 
-    // 外部服務 external services
+    // 外部服務
     private final LlmService llmService;
     private final DatabaseService databaseService;
     private final RetrievalService retrievalService;
 
-    // 內部狀態 internal flags
+    // 內部狀態
     private boolean searchIntentFlag = false;
     private boolean rejectIntentFlag = false;
     private boolean agentIntentFlag = false;
     private boolean knowledgeSearchFlag = false;
 
-    // 中間結果 intermediate results
+    // 中間結果
     private Map<String, Object> intentResponse = Map.of();
     private List<Object> entitySlot = List.of();
     private List<Map<String, Object>> normalSearchEntitySlot = List.of();
@@ -54,7 +53,7 @@ public class QueryStateMachine {
     private Map<String, Object> agentTaskSplit = Map.of();
     private List<Map<String, Object>> agentSearchResult = List.of();
 
-    // SQL 生成中間結果 SQL generation intermediate results
+    // SQL 生成中間結果
     private final Map<String, Object> intentSearchResult = new HashMap<>();
 
     public QueryStateMachine(ProcessingContext context,
@@ -66,7 +65,7 @@ public class QueryStateMachine {
         this.databaseService = databaseService;
         this.retrievalService = retrievalService;
 
-        // 決定初始狀態 determine initial state
+        // 決定初始狀態
         this.previousState = QueryState.USER_SELECT_ENTITY.name().equals(context.previousState())
                 ? QueryState.USER_SELECT_ENTITY
                 : QueryState.INITIAL;
@@ -75,7 +74,7 @@ public class QueryStateMachine {
                 : QueryState.INITIAL;
     }
 
-    // --- 公開方法 Public API ---
+    // --- 公開方法 ---
 
     public QueryState getState() { return state; }
     public Answer getAnswer() { return answer; }
@@ -88,10 +87,7 @@ public class QueryStateMachine {
         this.state = newState;
     }
 
-    /**
-     * 執行當前狀態的 handler
-     * Execute the handler for the current state
-     */
+    /** 執行當前狀態的 handler */
     public void executeCurrentState() {
         switch (state) {
             case INITIAL -> handleInitial();
@@ -116,13 +112,10 @@ public class QueryStateMachine {
     }
 
     // =====================================================
-    // 狀態處理器 State Handlers
+    // 狀態處理器
     // =====================================================
 
-    /**
-     * 初始狀態：設定查詢，嘗試改寫
-     * Initial state: set query, attempt rewrite if context_window > 0
-     */
+    /** 初始狀態：設定查詢，嘗試改寫 */
     void handleInitial() {
         try {
             answer.setQuery(context.searchBox());
@@ -141,10 +134,7 @@ public class QueryStateMachine {
         }
     }
 
-    /**
-     * 查詢改寫：用歷史對話讓 LLM 改寫問題
-     * Query rewrite: LLM rewrites query using conversation history
-     */
+    /** 查詢改寫：用歷史對話讓 LLM 改寫問題 */
     private void handleQueryRewrite() {
         try {
             Map<String, Object> promptMap = getPromptMap();
@@ -155,7 +145,7 @@ public class QueryStateMachine {
             String rewrittenQuery = (String) result.getOrDefault("query", context.searchBox());
 
             if ("ask_in_reply".equals(intent)) {
-                // LLM 認為需要反問用戶 LLM wants to ask a follow-up
+                // LLM 認為需要反問用戶
                 answer.setQuery(context.searchBox());
                 answer.setQueryIntent("ask_in_reply");
                 answer.setQueryRewrite(rewrittenQuery);
@@ -175,13 +165,8 @@ public class QueryStateMachine {
 
     /**
      * 意圖識別：LLM 判斷查詢類型 + NER 抽取
-     * Intent recognition: LLM classifies intent + extracts NER slots
      *
-     * 可能的意圖 Possible intents:
-     * - normal_search: 正常 SQL 查詢 normal SQL query
-     * - agent_search:  複雜多步查詢 complex multi-step query
-     * - knowledge_search: 知識問答 direct knowledge Q&A
-     * - reject_search: 拒絕回答 refuse to answer
+     * 可能的意圖: normal_search, agent_search, knowledge_search, reject_search
      */
     @SuppressWarnings("unchecked")
     void handleIntentRecognition() {
@@ -245,10 +230,7 @@ public class QueryStateMachine {
         }
     }
 
-    /**
-     * 拒絕意圖：不回答此查詢
-     * Reject intent: refuse to answer this query
-     */
+    /** 拒絕意圖：不回答此查詢 */
     void handleRejectIntent() {
         answer.setQuery(context.searchBox());
         answer.setQueryRewrite(answer.getQueryRewrite());
@@ -256,10 +238,7 @@ public class QueryStateMachine {
         transition(QueryState.COMPLETE);
     }
 
-    /**
-     * 知識搜索：LLM 直接回答，不生成 SQL
-     * Knowledge search: LLM answers directly without SQL
-     */
+    /** 知識搜索：LLM 直接回答，不生成 SQL */
     void handleKnowledgeSearch() {
         try {
             Map<String, Object> promptMap = getPromptMap();
@@ -279,10 +258,7 @@ public class QueryStateMachine {
 
     /**
      * 實體檢索：用 NER 槽位做向量搜索
-     * Entity retrieval: vector search using NER slots
-     *
      * 如果找到同名實體 (score > 0.98)，會轉到 ASK_ENTITY_SELECT 讓用戶選
-     * If same-name entities found (score > 0.98), ask user to disambiguate
      */
     @SuppressWarnings("unchecked")
     void handleEntityRetrieval() {
@@ -293,7 +269,7 @@ public class QueryStateMachine {
                 normalSearchEntitySlot = List.of();
             }
 
-            // 檢查同名實體 check for same-name entities
+            // 檢查同名實體
             Map<String, Object> sameNameEntity = new LinkedHashMap<>();
             for (Map<String, Object> entity : normalSearchEntitySlot) {
                 Map<String, Object> source = (Map<String, Object>) entity.get("_source");
@@ -318,10 +294,7 @@ public class QueryStateMachine {
         }
     }
 
-    /**
-     * QA 檢索：找相似問答對作為 SQL 生成範例
-     * QA retrieval: find similar Q&A pairs as SQL generation examples
-     */
+    /** QA 檢索：找相似問答對作為 SQL 生成範例 */
     void handleQaRetrieval() {
         try {
             if (context.useRagFlag()) {
@@ -338,10 +311,7 @@ public class QueryStateMachine {
         }
     }
 
-    /**
-     * SQL 生成：LLM 根據 DDL + 範例 + 查詢 生成 SQL
-     * SQL generation: LLM generates SQL from DDL + examples + query
-     */
+    /** SQL 生成：LLM 根據 DDL + 範例 + 查詢生成 SQL */
     void handleSqlGeneration() {
         try {
             String response = generateSql();
@@ -372,10 +342,7 @@ public class QueryStateMachine {
         }
     }
 
-    /**
-     * 執行 SQL：對資料庫跑 SQL，失敗可自動修正
-     * Execute query: run SQL against database, auto-correct on failure
-     */
+    /** 執行 SQL：對資料庫跑 SQL，失敗可自動修正 */
     @SuppressWarnings("unchecked")
     void handleExecuteQuery() {
         try {
@@ -405,7 +372,7 @@ public class QueryStateMachine {
             } else if (statusCode == 200) {
                 transition(QueryState.COMPLETE);
             } else if (statusCode == 500 && context.autoCorrection()) {
-                // 自動修正：重新生成 SQL auto-correct: regenerate SQL
+                // 自動修正：重新生成 SQL
                 handleAutoCorrection(result);
             } else {
                 answer.getErrorLog().put(QueryState.EXECUTE_QUERY.name(), result.get("errorInfo"));
@@ -421,20 +388,16 @@ public class QueryStateMachine {
     @SuppressWarnings("unchecked")
     private void handleAutoCorrection(Map<String, Object> firstResult) {
         log.info("Auto-correcting SQL after execution failure");
-        // TODO: 呼叫 LLM 重新生成 SQL (帶上錯誤資訊)
-        // For now, transition to ERROR
+        // TODO: 呼叫 LLM 重新生成 SQL（帶上錯誤資訊）
         answer.getErrorLog().put(QueryState.EXECUTE_QUERY.name(), firstResult.get("errorInfo"));
         transition(QueryState.ERROR);
     }
 
-    /**
-     * 數據分析：LLM 分析查詢結果，產生 insights
-     * Analyze data: LLM generates insights from query results
-     */
+    /** 數據分析：LLM 分析查詢結果，產生 insights */
     void handleAnalyzeData() {
         try {
             Map<String, Object> promptMap = getPromptMap();
-            // 將 data 轉成 JSON 字串 convert data to JSON string
+            // 將 data 轉成 JSON 字串
             String dataJson = intentSearchResult.get("sql_execute_result") != null
                     ? intentSearchResult.get("sql_execute_result").toString()
                     : "[]";
@@ -458,10 +421,7 @@ public class QueryStateMachine {
         }
     }
 
-    /**
-     * Agent 任務拆解：LLM 把複雜查詢拆成多個子任務
-     * Agent task: LLM breaks complex query into sub-tasks
-     */
+    /** Agent 任務拆解：LLM 把複雜查詢拆成多個子任務 */
     void handleAgentTask() {
         try {
             Map<String, Object> promptMap = getPromptMap();
@@ -479,10 +439,7 @@ public class QueryStateMachine {
         }
     }
 
-    /**
-     * Agent SQL 生成：為每個子任務生成 SQL
-     * Agent SQL generation: generate SQL for each sub-task
-     */
+    /** Agent SQL 生成：為每個子任務生成 SQL */
     void handleAgentSqlGeneration() {
         try {
             agentSearchResult = retrievalService.agentTextSearch(
@@ -496,10 +453,7 @@ public class QueryStateMachine {
         }
     }
 
-    /**
-     * Agent 數據匯總：執行各子任務 SQL，LLM 匯總分析
-     * Agent data summary: execute each sub-task SQL, LLM summarizes
-     */
+    /** Agent 數據匯總：執行各子任務 SQL，LLM 匯總分析 */
     @SuppressWarnings("unchecked")
     void handleAgentAnalyzeData() {
         try {
@@ -520,7 +474,7 @@ public class QueryStateMachine {
                 }
             }
 
-            // LLM 匯總 summarize
+            // LLM 匯總
             Map<String, Object> promptMap = getPromptMap();
             String summary = llmService.dataAnalyse(
                     context.modelType(), promptMap, answer.getQueryRewrite(),
@@ -535,26 +489,20 @@ public class QueryStateMachine {
         }
     }
 
-    /**
-     * 實體消歧：同名實體，請用戶選擇
-     * Entity selection: ask user to pick from same-name entities
-     */
+    /** 實體消歧：同名實體，請用戶選擇 */
     void handleEntitySelection() {
         answer.setQueryIntent("entity_select");
         transition(QueryState.COMPLETE);
     }
 
-    /**
-     * 處理用戶選擇的實體，繼續 QA 檢索
-     * Process user's entity selection, continue to QA retrieval
-     */
+    /** 處理用戶選擇的實體，繼續 QA 檢索 */
     void handleUserSelectEntity() {
         try {
             answer.setQuery(context.searchBox());
             answer.setQueryRewrite(context.queryRewrite());
             answer.setQueryIntent("normal_search");
             searchIntentFlag = true;
-            // 用戶選了實體，繼續做 QA 檢索 user selected entity, continue to QA
+            // 用戶選了實體，繼續做 QA 檢索
             transition(QueryState.QA_RETRIEVAL);
         } catch (Exception e) {
             log.error("handleUserSelectEntity error: {}", e.getMessage(), e);
@@ -563,10 +511,7 @@ public class QueryStateMachine {
         }
     }
 
-    /**
-     * 數據可視化：LLM 選擇圖表類型
-     * Data visualization: LLM selects chart type
-     */
+    /** 數據可視化：LLM 選擇圖表類型 */
     public void handleDataVisualization() {
         try {
             if (!"normal_search".equals(answer.getQueryIntent())) return;
@@ -598,10 +543,7 @@ public class QueryStateMachine {
         }
     }
 
-    /**
-     * 生成建議問題
-     * Generate suggested follow-up questions
-     */
+    /** 生成建議問題 */
     public void handleSuggestQuestion() {
         if (!context.genSuggestedQuestionFlag()) return;
         if (!searchIntentFlag && !agentIntentFlag) return;
@@ -617,7 +559,7 @@ public class QueryStateMachine {
     }
 
     // =====================================================
-    // 工具方法 Utility methods
+    // 工具方法
     // =====================================================
 
     @SuppressWarnings("unchecked")
@@ -636,12 +578,9 @@ public class QueryStateMachine {
                 normalSearchQaRetrieval, List.copyOf(normalSearchEntitySlot), dialect);
     }
 
-    /**
-     * 從 LLM 回應中提取 SQL (簡單實作)
-     * Extract SQL from LLM response (simple implementation)
-     */
+    /** 從 LLM 回應中提取 SQL */
     private String extractSql(String response) {
-        // 嘗試找 <sql>...</sql> 標籤 try to find <sql> tags
+        // 嘗試找 <sql>...</sql> 標籤
         if (response.contains("<sql>") && response.contains("</sql>")) {
             int start = response.indexOf("<sql>") + 5;
             int end = response.indexOf("</sql>");
@@ -651,7 +590,7 @@ public class QueryStateMachine {
     }
 
     private String extractSqlExplanation(String response) {
-        // 提取 SQL 前的解釋部分 extract explanation before SQL
+        // 提取 SQL 前的解釋部分
         if (response.contains("<sql>")) {
             return response.substring(0, response.indexOf("<sql>")).strip();
         }

@@ -6,11 +6,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 /**
- * 聊天會話 — 對應 Python 的 session 概念
- * Chat session entity — maps to Python's session concept
- *
- * 一個 session 包含多筆 ChatMessage
- * A session contains multiple ChatMessages
+ * 聊天會話 — 一個 session 包含多筆 ChatMessage
  */
 @Entity
 @Table(name = "chat_sessions", indexes = {

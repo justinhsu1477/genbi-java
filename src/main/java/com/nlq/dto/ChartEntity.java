@@ -5,10 +5,9 @@ import java.util.List;
 
 /**
  * 圖表資料
- * Chart data for visualization
  *
- * @param chartType 圖表類型 chart type (bar, line, pie, etc.)
- * @param chartData 圖表數據 chart data rows
+ * @param chartType 圖表類型 (bar, line, pie, etc.)
+ * @param chartData 圖表數據
  */
 public record ChartEntity(
         @JsonProperty("chart_type") String chartType,

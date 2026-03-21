@@ -21,18 +21,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * WebSocket Handler - 處理 /qa/ws 的所有訊息
- * Handles all messages on /qa/ws endpoint
+ * WebSocket Handler — 處理 /qa/ws 的所有訊息
  *
- * 流程 Flow:
+ * 流程:
  * 1. 前端透過 WebSocket 送 Question JSON
- *    Frontend sends Question JSON via WebSocket
  * 2. 後端建立 StateMachine，逐步執行各狀態
- *    Backend creates StateMachine, executes states step by step
  * 3. 每個狀態前後推送 STATE 訊息 (start/end) 讓前端顯示進度
- *    Push STATE messages (start/end) before/after each state for progress
  * 4. 最後推送 END 訊息，包含完整 Answer
- *    Finally push END message with the complete Answer
  */
 @Slf4j
 @Component
@@ -61,7 +56,7 @@ public class QaWebSocketHandler extends TextWebSocketHandler {
 
         try {
             Answer answer = processQuestion(session, question);
-            // 送出最終結果 send final result
+            // 送出最終結果
             sendMessage(session, sessionId, userId, ContentType.END, answer);
         } catch (Exception e) {
             log.error("Error processing question: {}", e.getMessage(), e);
@@ -69,45 +64,42 @@ public class QaWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    /**
-     * 處理查詢的主要邏輯 - 建立狀態機並逐步執行
-     * Main query processing logic — create state machine and step through states
-     */
+    /** 處理查詢的主要邏輯 — 建立狀態機並逐步執行 */
     private Answer processQuestion(WebSocketSession session, Question question) throws Exception {
         String sessionId = question.sessionId();
         String userId = question.userId();
 
-        // 1. 取得 database profile get database profile
+        // 1. 取得 database profile
         Map<String, Map<String, Object>> allProfiles = profileService.getAllProfiles();
         Map<String, Object> dbProfile = allProfiles.getOrDefault(question.profileName(), Map.of());
 
-        // 2. 取得歷史查詢 get query history
+        // 2. 取得歷史查詢
         List<String> history = List.of();
         if (question.contextWindow() > 0) {
             history = profileService.getHistoryBySession(
                     question.profileName(), userId, sessionId, question.contextWindow());
         }
 
-        // 3. 建立上下文和狀態機 build context & state machine
+        // 3. 建立上下文和狀態機
         ProcessingContext context = ProcessingContext.from(question, dbProfile, history);
         QueryStateMachine stateMachine = new QueryStateMachine(context, llmService, databaseService, retrievalService);
 
-        // 4. 逐狀態執行，每步推送進度 execute state by state, push progress
+        // 4. 逐狀態執行，每步推送進度
         while (!stateMachine.isTerminal()) {
             String stateLabel = getStateLabel(stateMachine.getState());
 
-            // 推送 STATE start push STATE start
+            // 推送 STATE start
             sendMessage(session, sessionId, userId, ContentType.STATE,
                     new StateContent(stateLabel, "start"));
 
             stateMachine.executeCurrentState();
 
-            // 推送 STATE end push STATE end
+            // 推送 STATE end
             sendMessage(session, sessionId, userId, ContentType.STATE,
                     new StateContent(stateLabel, "end"));
         }
 
-        // 5. 建議問題 suggested questions
+        // 5. 建議問題
         if (question.genSuggestedQuestionFlag()
                 && !"entity_select".equals(stateMachine.getAnswer().getQueryIntent())) {
             if (stateMachine.isSearchIntent() || stateMachine.isAgentIntent()) {
@@ -119,7 +111,7 @@ public class QaWebSocketHandler extends TextWebSocketHandler {
             }
         }
 
-        // 6. 數據可視化 data visualization
+        // 6. 數據可視化
         if (stateMachine.getState() == QueryState.COMPLETE) {
             sendMessage(session, sessionId, userId, ContentType.STATE,
                     new StateContent("Data Visualization", "start"));
@@ -131,10 +123,7 @@ public class QaWebSocketHandler extends TextWebSocketHandler {
         return stateMachine.getAnswer();
     }
 
-    /**
-     * 送出 WebSocket 訊息
-     * Send WebSocket message to client
-     */
+    /** 送出 WebSocket 訊息 */
     private void sendMessage(WebSocketSession session, String sessionId,
                              String userId, ContentType contentType, Object content) throws Exception {
         WsMessage msg = new WsMessage(sessionId, userId, contentType.getValue(), content);
@@ -142,10 +131,7 @@ public class QaWebSocketHandler extends TextWebSocketHandler {
         session.sendMessage(new TextMessage(json));
     }
 
-    /**
-     * 狀態對應的前端顯示文字
-     * Human-readable label for each state
-     */
+    /** 狀態對應的前端顯示文字 */
     private String getStateLabel(QueryState state) {
         return switch (state) {
             case INITIAL -> "Query Rewrite";

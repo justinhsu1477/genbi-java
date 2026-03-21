@@ -4,25 +4,19 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * LLM 服務介面 - 封裝所有 AI 模型呼叫
- * LLM service interface — wraps all AI model invocations
- *
- * 對應 Python 的 utils/llm.py
- * Maps to Python's utils/llm.py
+ * LLM 服務介面 — 封裝所有 AI 模型呼叫
  */
 public interface LlmService {
 
     /**
      * 意圖識別 + NER 槽位提取
-     * Intent recognition + NER slot extraction
      *
      * @return {"intent": "normal_search|agent_search|knowledge_search|reject_search", "slot": [...]}
      */
     Map<String, Object> getQueryIntent(String modelId, String query, Map<String, Object> promptMap);
 
     /**
-     * 查詢改寫 (根據歷史對話重寫問題)
-     * Query rewrite based on conversation history
+     * 查詢改寫（根據歷史對話重寫問題）
      *
      * @return {"intent": "normal|ask_in_reply", "query": "rewritten query"}
      */
@@ -30,48 +24,34 @@ public interface LlmService {
 
     /**
      * 自然語言轉 SQL
-     * Text to SQL generation
      *
-     * @param tablesInfo DDL 資訊 table schema info
-     * @param hints      提示 additional hints
-     * @param query      查詢 user query
-     * @param sqlExamples 範例 SQL examples from RAG
-     * @param nerExamples NER 實體 entity examples
-     * @param dialect    資料庫方言 db dialect (mysql/postgresql/etc)
-     * @return 生成的 SQL 回應 generated SQL response text
+     * @param tablesInfo  DDL 資訊
+     * @param hints       補充提示
+     * @param query       用戶查詢
+     * @param sqlExamples RAG 檢索到的 SQL 範例
+     * @param nerExamples NER 實體範例
+     * @param dialect     資料庫方言 (mysql/postgresql/etc)
+     * @return 生成的 SQL 回應文字
      */
     String textToSql(String tablesInfo, String hints, Map<String, Object> promptMap,
                      String query, String modelId, List<Object> sqlExamples,
                      List<Object> nerExamples, String dialect);
 
-    /**
-     * 知識搜索 (LLM 直接回答)
-     * Knowledge search — direct LLM answer
-     */
+    /** 知識搜索（LLM 直接回答） */
     String knowledgeSearch(String query, String modelId, Map<String, Object> promptMap);
 
-    /**
-     * 數據分析
-     * Data analysis — generate insights from query results
-     */
+    /** 數據分析 — 從查詢結果產生 insights */
     String dataAnalyse(String modelId, Map<String, Object> promptMap, String query, String dataJson, String type);
 
-    /**
-     * Agent 任務拆解
-     * Agent CoT task split — break complex query into sub-tasks
-     */
+    /** Agent 任務拆解 — 將複雜查詢拆成子任務 */
     Map<String, Object> getAgentCotTask(String modelId, Map<String, Object> promptMap,
                                          String query, String tablesInfo, List<Object> agentExamples);
 
-    /**
-     * 生成建議問題
-     * Generate suggested follow-up questions
-     */
+    /** 生成建議問題 */
     List<String> generateSuggestedQuestions(Map<String, Object> promptMap, String query, String modelId);
 
     /**
      * 數據可視化類型選擇
-     * Select data visualization type (table/bar/line/pie)
      *
      * @return {"showType": "table|chart", "chartType": "bar|line|pie|-1", "chartData": [...]}
      */

@@ -20,10 +20,6 @@ import java.util.Map;
 
 /**
  * AWS Bedrock LLM 服務 — 真實呼叫 Claude (qas/prod 環境)
- * Real AWS Bedrock LLM service — invokes Claude via Bedrock (qas/prod profiles)
- *
- * 對應 Python: utils/llm.py 的 invoke_model_claude3()
- * Maps to Python's invoke_model_claude3() in utils/llm.py
  */
 @Slf4j
 @Service
@@ -36,7 +32,7 @@ public class BedrockLlmService implements LlmService {
 
     private volatile BedrockRuntimeClient client;
 
-    // --- 公開介面實作 Public interface implementations ---
+    // --- 公開介面實作 ---
 
     @Override
     public Map<String, Object> getQueryIntent(String modelId, String query, Map<String, Object> promptMap) {
@@ -153,14 +149,9 @@ public class BedrockLlmService implements LlmService {
         return parseJson(response, new TypeReference<>() {});
     }
 
-    // --- 內部工具 Internal utilities ---
+    // --- 內部工具 ---
 
-    /**
-     * 呼叫 Bedrock Claude API
-     * Invoke Bedrock Claude API (Messages API format)
-     *
-     * 對應 Python: invoke_model_claude3()
-     */
+    /** 呼叫 Bedrock Claude API (Messages API format) */
     String invokeModel(String modelId, String systemPrompt, String userMessage, int maxTokens) {
         try {
             Map<String, Object> body = Map.of(
@@ -184,7 +175,7 @@ public class BedrockLlmService implements LlmService {
             String responseJson = response.body().asUtf8String();
             Map<String, Object> responseMap = objectMapper.readValue(responseJson, new TypeReference<>() {});
 
-            // Claude 回傳格式: {"content": [{"type": "text", "text": "..."}], ...}
+            // Claude 回傳格式: {"content": [{"type": "text", "text": "..."}]}
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> content = (List<Map<String, Object>>) responseMap.get("content");
             String text = (String) content.getFirst().get("text");
@@ -237,7 +228,7 @@ public class BedrockLlmService implements LlmService {
      */
     private <T> T parseJson(String response, TypeReference<T> typeRef) {
         try {
-            // 去除可能的 markdown code block 包裹
+            // 去除 markdown code block 包裹
             String cleaned = response.strip();
             if (cleaned.startsWith("```json")) {
                 cleaned = cleaned.substring(7);
@@ -249,7 +240,7 @@ public class BedrockLlmService implements LlmService {
             }
             cleaned = cleaned.strip();
 
-            // 嘗試找 JSON 區塊 try to find JSON block
+            // 嘗試找 JSON 區塊
             int jsonStart = cleaned.indexOf('{');
             int arrayStart = cleaned.indexOf('[');
             int start = -1;

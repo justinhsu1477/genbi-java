@@ -7,10 +7,6 @@ import java.time.LocalDateTime;
 
 /**
  * 聊天訊息 — 紀錄每次問答的完整內容
- * Chat message entity — records full content of each Q&A exchange
- *
- * 對應 Python: LogManagement.add_log() 存到 DynamoDB 的資料
- * Maps to Python's LogManagement.add_log() stored in DynamoDB
  */
 @Entity
 @Table(name = "chat_messages", indexes = {
@@ -37,27 +33,27 @@ public class ChatMessage {
     @Column(name = "profile_name", nullable = false, length = 128)
     private String profileName;
 
-    // 用戶原始查詢 user's original query
+    // 用戶原始查詢
     @Column(name = "query", nullable = false, columnDefinition = "TEXT")
     private String query;
 
-    // 改寫後的查詢 rewritten query
+    // 改寫後的查詢
     @Column(name = "query_rewrite", columnDefinition = "TEXT")
     private String queryRewrite;
 
-    // 意圖類型 intent type (normal_search, knowledge_search, agent_search, reject_search)
+    // 意圖類型 (normal_search, knowledge_search, agent_search, reject_search)
     @Column(name = "query_intent", length = 32)
     private String queryIntent;
 
-    // 生成的 SQL generated SQL
+    // 生成的 SQL
     @Column(name = "sql_text", columnDefinition = "TEXT")
     private String sqlText;
 
-    // 完整回答 JSON full answer JSON
+    // 完整回答 JSON
     @Column(name = "answer", columnDefinition = "LONGTEXT")
     private String answer;
 
-    // 使用的模型 ID model used
+    // 使用的模型 ID
     @Column(name = "model_id", length = 128)
     private String modelId;
 

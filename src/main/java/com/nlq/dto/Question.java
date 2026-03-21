@@ -5,26 +5,25 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 用戶提問請求 - 對應 Python 的 Question schema
- * User question request — maps to Python Question schema
+ * 用戶提問請求
  *
- * @param query              用戶的自然語言問題 the natural language question
- * @param bedrockModelId     LLM 模型 ID model identifier
- * @param profileName        資料庫 profile database profile name
- * @param sessionId          會話 ID session identifier
- * @param userId             用戶 ID user identifier
- * @param username           用戶名稱 username
- * @param useRagFlag         是否使用 RAG whether to use RAG retrieval
- * @param intentNerRecognitionFlag 是否做意圖識別 whether to do intent recognition
- * @param agentCotFlag       是否啟用 Agent 模式 whether to enable agent mode
- * @param explainGenProcessFlag 是否解釋生成過程 whether to explain SQL generation
- * @param genSuggestedQuestionFlag 是否生成建議問題 whether to generate follow-up questions
- * @param answerWithInsights 是否附帶數據分析 whether to include data insights
- * @param contextWindow      上下文窗口大小 conversation history size
- * @param queryRewrite       改寫後的查詢 rewritten query
- * @param previousIntent     前一次的意圖 previous intent
- * @param entityUserSelect   用戶選擇的實體 user selected entity
- * @param entityRetrieval    檢索到的實體 retrieved entities
+ * @param query              用戶的自然語言問題
+ * @param bedrockModelId     LLM 模型 ID
+ * @param profileName        資料庫 profile 名稱
+ * @param sessionId          會話 ID
+ * @param userId             用戶 ID
+ * @param username           用戶名稱
+ * @param useRagFlag         是否使用 RAG
+ * @param intentNerRecognitionFlag 是否做意圖識別
+ * @param agentCotFlag       是否啟用 Agent 模式
+ * @param explainGenProcessFlag 是否解釋生成過程
+ * @param genSuggestedQuestionFlag 是否生成建議問題
+ * @param answerWithInsights 是否附帶數據分析
+ * @param contextWindow      上下文窗口大小
+ * @param queryRewrite       改寫後的查詢
+ * @param previousIntent     前一次的意圖
+ * @param entityUserSelect   用戶選擇的實體
+ * @param entityRetrieval    檢索到的實體
  */
 public record Question(
         String query,
@@ -76,7 +75,7 @@ public record Question(
         @JsonProperty("entity_retrieval")
         List<Object> entityRetrieval
 ) {
-    // 提供合理的預設值 provide sensible defaults
+    // 預設值
     public Question {
         if (bedrockModelId == null) bedrockModelId = "anthropic.claude-3-sonnet-20240229-v1:0";
         if (sessionId == null) sessionId = "-1";

@@ -2,13 +2,12 @@ package com.nlq.enums;
 
 /**
  * WebSocket 訊息類型
- * WebSocket message content type
  */
 public enum ContentType {
-    EXCEPTION("exception"),  // 異常 error message
-    COMMON("common"),        // 一般訊息 normal message
-    STATE("state"),          // 狀態更新 state progress update
-    END("end");              // 結束 final result
+    EXCEPTION("exception"),  // 異常
+    COMMON("common"),        // 一般訊息
+    STATE("state"),          // 狀態更新
+    END("end");              // 結束（最終結果）
 
     private final String value;
 

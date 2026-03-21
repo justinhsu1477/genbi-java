@@ -8,8 +8,7 @@ import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 
 /**
- * WebSocket 配置 - 註冊 /qa/ws 端點
- * WebSocket config — register /qa/ws endpoint
+ * WebSocket 配置 — 註冊 /qa/ws 端點
  */
 @Configuration
 @EnableWebSocket
@@ -21,6 +20,6 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(qaWebSocketHandler, "/qa/ws")
-                .setAllowedOrigins("*"); // 開發階段允許所有來源 allow all origins for dev
+                .setAllowedOrigins("*"); // 開發階段允許所有來源
     }
 }

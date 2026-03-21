@@ -6,12 +6,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 /**
- * 用戶回饋 — 對查詢結果的評價（讚/踩）
- * User feedback — upvote/downvote on query results
- *
- * 對應 Python: /qa/user_feedback endpoint
- * 讚（upvote）會加入 RAG 做為範例，踩（downvote）只做記錄
- * Upvote adds to RAG as example, downvote is logged only
+ * 用戶回饋 — upvote 會加入 RAG 做為範例，downvote 只做記錄
  */
 @Entity
 @Table(name = "user_feedbacks", indexes = {
@@ -35,7 +30,7 @@ public class UserFeedback {
     @Column(name = "user_id", nullable = false, length = 64)
     private String userId;
 
-    // 對應的訊息 ID the related message ID
+    // 對應的訊息 ID
     @Column(name = "message_id")
     private Long messageId;
 
@@ -43,7 +38,7 @@ public class UserFeedback {
     @Column(name = "feedback_type", nullable = false, length = 16)
     private String feedbackType;
 
-    // 用戶的查詢 user's query
+    // 用戶的查詢
     @Column(name = "query", columnDefinition = "TEXT")
     private String query;
 
@@ -51,7 +46,7 @@ public class UserFeedback {
     @Column(name = "sql_text", columnDefinition = "TEXT")
     private String sqlText;
 
-    // 用戶備註 user comment
+    // 用戶備註
     @Column(name = "comment", columnDefinition = "TEXT")
     private String comment;
 

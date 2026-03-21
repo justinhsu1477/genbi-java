@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 
 /**
  * 聊天訊息回傳 DTO
- * Chat message response DTO for GET /qa/sessions/{sessionId}
  */
 public record MessageResponse(
         Long id,

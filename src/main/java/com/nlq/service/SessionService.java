@@ -16,9 +16,6 @@ import java.util.List;
 
 /**
  * 會話管理服務 — Session CRUD
- * Session management service
- *
- * 對應 Python: /qa/get_sessions, /qa/get_history_by_session, /qa/delete_history_by_session
  */
 @Slf4j
 @Service
@@ -28,10 +25,7 @@ public class SessionService {
     private final ChatSessionRepository sessionRepository;
     private final ChatMessageRepository messageRepository;
 
-    /**
-     * 查詢用戶的所有 session
-     * Get all sessions for a user
-     */
+    /** 查詢用戶的所有 session */
     public List<SessionResponse> getSessionsByUser(String userId) {
         log.info("[Session] getSessionsByUser: userId={}", userId);
         return sessionRepository.findByUserIdOrderByUpdatedAtDesc(userId).stream()
@@ -39,10 +33,7 @@ public class SessionService {
                 .toList();
     }
 
-    /**
-     * 查詢 session 內的所有訊息
-     * Get all messages in a session
-     */
+    /** 查詢 session 內的所有訊息 */
     public List<MessageResponse> getMessagesBySession(String sessionId) {
         log.info("[Session] getMessagesBySession: sessionId={}", sessionId);
         sessionRepository.findBySessionId(sessionId)
@@ -53,10 +44,7 @@ public class SessionService {
                 .toList();
     }
 
-    /**
-     * 刪除 session 及其所有訊息
-     * Delete a session and all its messages
-     */
+    /** 刪除 session 及其所有訊息 */
     @Transactional
     public void deleteSession(String sessionId) {
         log.info("[Session] deleteSession: sessionId={}", sessionId);
@@ -67,15 +55,12 @@ public class SessionService {
         sessionRepository.deleteBySessionId(sessionId);
     }
 
-    /**
-     * 儲存一筆問答訊息（由 WebSocket handler 呼叫）
-     * Save a Q&A message (called by WebSocket handler after query completes)
-     */
+    /** 儲存一筆問答訊息（由 WebSocket handler 呼叫） */
     @Transactional
     public void saveMessage(String sessionId, String userId, String profileName,
                             String query, String queryRewrite, String queryIntent,
                             String sqlText, String answerJson, String modelId) {
-        // 確保 session 存在，不存在就建立 ensure session exists
+        // 確保 session 存在，不存在就建立
         ChatSession session = sessionRepository.findBySessionId(sessionId)
                 .orElseGet(() -> sessionRepository.save(ChatSession.builder()
                         .sessionId(sessionId)
@@ -84,11 +69,11 @@ public class SessionService {
                         .title(query.length() > 50 ? query.substring(0, 50) + "..." : query)
                         .build()));
 
-        // 更新 session 的 updatedAt update session timestamp
+        // 更新 session 的 updatedAt
         session.setUpdatedAt(java.time.LocalDateTime.now());
         sessionRepository.save(session);
 
-        // 儲存訊息 save message
+        // 儲存訊息
         messageRepository.save(ChatMessage.builder()
                 .sessionId(sessionId)
                 .userId(userId)
@@ -102,7 +87,7 @@ public class SessionService {
                 .build());
     }
 
-    // --- 轉換方法 Mapping methods ---
+    // --- 轉換方法 ---
 
     private SessionResponse toSessionResponse(ChatSession s) {
         return new SessionResponse(s.getSessionId(), s.getUserId(), s.getProfileName(),
