@@ -1,0 +1,44 @@
+# ============================================================
+# NLQ Demo: MySQL + Spring Boot
+#
+# 啟動方式 How to run:
+#   docker compose up --build
+#
+# WebSocket 測試 Test WebSocket:
+#   wscat -c ws://localhost:8080/qa/ws
+#   然後貼上 JSON (見 README)
+# ============================================================
+
+services:
+  # --- MySQL 資料庫 ---
+  mysql:
+    image: mysql:8.0
+    container_name: nlq-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: nlq_demo
+      MYSQL_USER: nlq
+      MYSQL_PASSWORD: nlq123
+    ports:
+      - "3307:3306"   # 用 3307 避免跟本機 MySQL 衝突 use 3307 to avoid conflict
+    volumes:
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # --- Spring Boot App ---
+  app:
+    build: .
+    container_name: nlq-app
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/nlq_demo
+      DB_USER: nlq
+      DB_PASS: nlq123
+    depends_on:
+      mysql:
+        condition: service_healthy

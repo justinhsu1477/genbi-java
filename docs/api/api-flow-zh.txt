@@ -1,0 +1,284 @@
+============================================================
+API 流程文件（全部 12 支端點）
+============================================================
+
+
+------------------------------------------------------------
+#1  GET /
+------------------------------------------------------------
+用途：健康檢查
+
+流程：
+  請求 → 回傳 "OK"
+
+備註：跟 /ping 重複，建議移除。
+
+
+------------------------------------------------------------
+#2  GET /ping
+------------------------------------------------------------
+用途：健康檢查（給 K8s / Load Balancer 探針用）
+
+流程：
+  請求 → 回傳 "OK"
+
+
+------------------------------------------------------------
+#3  GET /test
+------------------------------------------------------------
+用途：導向靜態 WebSocket 測試頁面
+
+流程：
+  請求 → 導向 /static/WebSocket.html
+
+備註：純開發測試用，建議移除。
+
+
+------------------------------------------------------------
+#4  GET /option
+------------------------------------------------------------
+用途：取得可用的 Profile 和模型列表
+
+流程：
+  請求 → 跟 /qa/option 完全一樣（重複）
+
+備註：跟 #5 重複，建議移除。
+
+
+------------------------------------------------------------
+#5  GET /qa/option
+------------------------------------------------------------
+用途：回傳前端下拉選單需要的「資料庫 Profile 列表」和「LLM 模型列表」。
+
+請求：
+  GET /qa/option?id=user123   (id 可選)
+
+流程：
+  1. 從 DB 取得所有 Profile
+  2. 取得所有模型 ID（Bedrock 內建 + SageMaker 自訂）
+  3. 如果有開啟「用戶-Profile 對應」且有傳 id：
+       → 查該用戶允許的 Profile
+       → 找到 → 回傳該用戶的 Profile 列表
+       → 沒找到 → 回傳 ["No_Profile"]
+  4. 否則 → 回傳全部 Profile
+  5. 回傳 { data_profiles, bedrock_model_ids }
+
+
+------------------------------------------------------------
+#6  GET /qa/get_custom_question
+------------------------------------------------------------
+用途：取得某個 Profile 設定的範例問題（前端提示用戶可以問什麼）。
+
+請求：
+  GET /qa/get_custom_question?data_profile=demo-profile
+
+流程：
+  1. 根據名稱找到 Profile
+  2. 讀取 comments 欄位
+  3. 如果 comments 包含 "Examples:"：
+       → 切割 "Examples:" 後面的文字，用 ";" 分割
+       → 回傳問題列表
+  4. 否則 → 回傳空列表
+
+備註：目前是從 comments 自由文字裡 parse 出來的，做法太 hacky。
+      建議改成獨立欄位或獨立表。
+
+
+------------------------------------------------------------
+#7  POST /qa/get_history_by_user_profile
+------------------------------------------------------------
+用途：取得某用戶在某 Profile 下的所有聊天紀錄，按 Session 分組。
+
+請求：
+  { "user_id": "admin", "profile_name": "demo-profile" }
+
+流程：
+  1. 查 DB，條件 = user_id + profile_name
+  2. 按 session_id 分組
+  3. 每組裡配對：
+       → 人類訊息（query）
+       → AI 訊息（log_info JSON 解析）
+  4. 回傳 [{ session_id, messages[] }, ...]
+
+備註：跟 #8（get_sessions）+ #9（get_history_by_session）功能重疊。
+      前端實際上是先拿 session 列表，點了再載入訊息。
+      建議合併成 #8 + #9 就夠了。
+
+
+------------------------------------------------------------
+#8  POST /qa/get_sessions
+------------------------------------------------------------
+用途：取得 Session 列表（側邊欄導航用）。
+
+請求：
+  { "user_id": "admin", "profile_name": "demo-profile" }
+
+流程：
+  1. 查 DB，取得不重複的 session（條件 = user_id + profile_name）
+  2. 回傳 session 列表
+
+
+------------------------------------------------------------
+#9  POST /qa/get_history_by_session
+------------------------------------------------------------
+用途：點選某個 Session 時，載入該對話的所有訊息。
+
+請求：
+  { "session_id": "abc-123", "user_id": "admin", "profile_name": "demo-profile" }
+
+流程：
+  1. 查 DB，取該 session 的所有紀錄（最多 1000 筆）
+  2. 格式化成 human/AI 訊息對
+  3. 取第一筆 query 當標題
+  4. 回傳 { session_id, messages[], title }
+
+
+------------------------------------------------------------
+#10  POST /qa/delete_history_by_session
+------------------------------------------------------------
+用途：刪除某個 Session 的所有紀錄。
+
+請求：
+  { "session_id": "abc-123", "user_id": "admin", "profile_name": "demo-profile" }
+
+流程：
+  1. 刪除 DB 中符合（user_id + profile_name + session_id）的所有紀錄
+  2. 回傳 成功/失敗
+
+
+------------------------------------------------------------
+#11  POST /qa/user_feedback
+------------------------------------------------------------
+用途：用戶對查詢結果按讚或倒讚。
+      按讚 → 這組問答會加入 RAG 向量庫（改善未來查詢品質）。
+      倒讚 → 記錄錯誤回饋供人工審查。
+
+請求：
+  {
+    "feedback_type": "upvote",
+    "data_profiles": "demo-profile",
+    "query": "今個月總銷售額多少",
+    "query_intent": "normal_search",
+    "query_answer": "SELECT SUM(amount) FROM orders",
+    "error_description": "",         // 倒讚才需要
+    "error_categories": "",          // 倒讚才需要
+    "correct_sql_reference": ""      // 倒讚才需要
+  }
+
+流程：
+  1. 如果 feedback_type == "upvote"（按讚）：
+       → VectorStore.新增範例(profile, query, sql)
+       → 這組問答以後會被 RAG 檢索到，當作 few-shot 範例
+       → 回傳成功
+
+  2. 如果 feedback_type == "downvote"（倒讚）：
+       → 組合錯誤資訊 JSON
+       → 寫入回饋 DB（供人工審查 / 模型改善）
+       → 回傳成功
+
+
+------------------------------------------------------------
+#12  WebSocket /qa/ws  ** 核心功能 **
+------------------------------------------------------------
+用途：主要 NLQ 查詢。用戶用自然語言問問題
+      → 系統生成 SQL → 執行 → 回傳結果。
+
+請求（透過 WebSocket 送 JSON）：
+  {
+    "query": "這個月的總銷售額是多少",
+    "profile_name": "demo-profile",
+    "session_id": "abc-123",
+    "user_id": "admin",
+    "bedrock_model_id": "anthropic.claude-3-sonnet-20240229-v1:0",
+    "use_rag_flag": true,
+    "intent_ner_recognition_flag": true,
+    "agent_cot_flag": true,
+    "context_window": 5,
+    ...
+  }
+
+回應（多條 WebSocket 訊息）：
+  - STATE 訊息（進度）：  { content_type: "state", content: { text: "步驟名稱", status: "start|end" } }
+  - END 訊息（最終結果）：{ content_type: "end", content: Answer 物件 }
+  - EXCEPTION（錯誤）：   { content_type: "exception", content: "錯誤訊息" }
+
+流程：
+  1. 接收 JSON，解析成 Question
+  2. 認證（如果 SSO 開啟的話，之後會移除）
+  3. 載入資料庫 Profile + 連線資訊
+  4. 載入用戶查詢歷史（用於 context window）
+  5. 建立 ProcessingContext
+  6. 建立 QueryStateMachine（狀態機）
+  7. 執行狀態機迴圈：
+
+     初始狀態 INITIAL
+       → 如果 context_window > 0：查詢改寫（LLM 根據歷史改寫問題）
+         → 如果 LLM 認為要反問用戶 → 回傳 "ask_in_reply" → 完成
+       → 意圖識別 INTENT_RECOGNITION（LLM 分類查詢為 4 種類型）
+
+     路徑 A：normal_search（正常搜索）
+       → 實體檢索 ENTITY_RETRIEVAL（向量搜索 NER 實體）
+         → 如果找到同名實體 → 請用戶選擇 ASK_ENTITY_SELECT → 完成
+       → QA 檢索 QA_RETRIEVAL（向量搜索相似問答對，當作範例）
+       → SQL 生成 SQL_GENERATION（LLM 用 DDL + 範例 + 提示 生成 SQL）
+       → 執行 SQL EXECUTE_QUERY（對資料庫跑 SQL）
+         → 如果失敗 + 開啟自動修正 → 帶錯誤訊息重新生成 SQL → 再跑一次
+       → 數據分析 ANALYZE_DATA（可選，LLM 產生 insights）
+       → 完成
+
+     路徑 B：knowledge_search（知識搜索）
+       → LLM 直接回答，不生成 SQL
+       → 完成
+
+     路徑 C：reject_search（拒絕回答）
+       → 不回答此查詢
+       → 完成
+
+     路徑 D：agent_search（Agent 多步搜索）
+       → 任務拆解 AGENT_TASK（LLM 把複雜查詢拆成多個子任務）
+       → Agent SQL 生成 AGENT_SEARCH（為每個子任務各生成一條 SQL）
+       → 數據匯總 AGENT_DATA_SUMMARY（執行各子任務 SQL，LLM 統整所有結果）
+       → 完成
+
+  8. 完成後的後處理：
+     → 生成建議問題（可選）
+     → 數據可視化（LLM 選圖表類型：table / bar / line / pie）
+     → 儲存查詢紀錄到 DB
+     → 推送 END 訊息，包含完整 Answer 物件
+
+
+Answer 物件結構：
+  {
+    "query":                  "用戶原始問題",
+    "query_rewrite":          "LLM 改寫後的問題",
+    "query_intent":           "normal_search | agent_search | knowledge_search | reject_search | entity_select | ask_in_reply",
+    "sql_search_result": {
+      "sql":                  "SELECT ...",
+      "sql_data":             [[欄位名], [第一行], [第二行], ...],
+      "data_show_type":       "table | bar | line | pie",
+      "sql_gen_process":      "SQL 生成過程說明",
+      "data_analyse":         "LLM 數據分析結論",
+      "sql_data_chart":       [{ "chart_type": "bar", "chart_data": [...] }]
+    },
+    "knowledge_search_result": { "knowledge_response": "LLM 直接回答" },
+    "agent_search_result": {
+      "agent_sql_search_result": [{ "sub_task_query": "子任務", "sql_search_result": {...} }],
+      "agent_summary":        "LLM 對所有子任務結果的統整分析"
+    },
+    "suggested_question":     ["建議問題1", "建議問題2", "建議問題3"],
+    "ask_entity_select":      { "entity_select_info": {...}, "entity_retrieval": [...] },
+    "error_log":              {}
+  }
+
+
+============================================================
+前端呼叫順序（API 之間的依賴關係）
+============================================================
+
+1. 頁面載入     → GET /qa/option                     → 填入 Profile 和模型下拉選單
+2. 選擇 Profile → GET /qa/get_custom_question         → 顯示範例問題
+3. 載入 Session → POST /qa/get_sessions               → 側邊欄顯示對話列表
+4. 點選 Session → POST /qa/get_history_by_session      → 載入聊天訊息
+5. 提問         → WebSocket /qa/ws                     → 執行 NLQ 主流程
+6. 按讚/倒讚    → POST /qa/user_feedback               → 改善 RAG / 記錄錯誤
+7. 刪除 Session → POST /qa/delete_history_by_session   → 清理
