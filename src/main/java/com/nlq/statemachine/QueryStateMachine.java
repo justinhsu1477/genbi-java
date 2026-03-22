@@ -385,12 +385,67 @@ public class QueryStateMachine {
         }
     }
 
+    /**
+     * SQL 自動修正 — 把失敗的 SQL + 錯誤訊息餵回 LLM，重新生成一次
+     * 對應 Python: _generate_sql_again() + handle_execute_query 中的 auto_correction 邏輯
+     */
     @SuppressWarnings("unchecked")
     private void handleAutoCorrection(Map<String, Object> firstResult) {
-        log.info("Auto-correcting SQL after execution failure");
-        // TODO: 呼叫 LLM 重新生成 SQL（帶上錯誤資訊）
-        answer.getErrorLog().put(QueryState.EXECUTE_QUERY.name(), firstResult.get("errorInfo"));
-        transition(QueryState.ERROR);
+        log.info("Auto-correcting SQL: original error={}", firstResult.get("errorInfo"));
+        try {
+            String originalSql = (String) intentSearchResult.getOrDefault("original_sql", "");
+            String errorInfo = String.valueOf(firstResult.getOrDefault("errorInfo", "unknown error"));
+
+            // 用 LLM 重新生成 SQL（帶上錯誤資訊）
+            String tablesInfo = (String) context.databaseProfile().getOrDefault("tables_info", "");
+            String hints = (String) context.databaseProfile().getOrDefault("hints", "");
+            String dialect = (String) context.databaseProfile().getOrDefault("db_type", "mysql");
+            Map<String, Object> promptMap = getPromptMap();
+
+            String correctedResponse = llmService.textToSqlWithCorrection(
+                    tablesInfo, hints, promptMap,
+                    answer.getQueryRewrite(), context.modelType(),
+                    normalSearchQaRetrieval, List.copyOf(normalSearchEntitySlot), dialect,
+                    originalSql, errorInfo);
+
+            String correctedSql = extractSql(correctedResponse);
+            log.info("Auto-correction generated new SQL: {}", correctedSql);
+
+            // 執行修正後的 SQL
+            Map<String, Object> retryResult = databaseService.executeSql(context.databaseProfile(), correctedSql);
+            int retryStatus = (int) retryResult.getOrDefault("statusCode", 500);
+
+            // 更新 answer 的 SQL 結果
+            intentSearchResult.put("sql", correctedSql);
+            intentSearchResult.put("sql_execute_result", retryResult);
+
+            List<Object> data = (List<Object>) retryResult.getOrDefault("data", List.of());
+            answer.setSqlSearchResult(new SqlSearchResult(
+                    correctedSql,
+                    data,
+                    "table",
+                    extractSqlExplanation(correctedResponse),
+                    "",
+                    List.of()
+            ));
+
+            if (retryStatus == 200 && context.dataWithAnalyse()) {
+                transition(QueryState.ANALYZE_DATA);
+            } else if (retryStatus == 200) {
+                transition(QueryState.COMPLETE);
+            } else {
+                // 修正後還是失敗，放棄（只重試一次）
+                log.warn("Auto-correction failed again: {}", retryResult.get("errorInfo"));
+                answer.getErrorLog().put(QueryState.EXECUTE_QUERY.name(),
+                        "Auto-correction failed: " + retryResult.get("errorInfo"));
+                transition(QueryState.ERROR);
+            }
+        } catch (Exception e) {
+            log.error("handleAutoCorrection error: {}", e.getMessage(), e);
+            answer.getErrorLog().put(QueryState.EXECUTE_QUERY.name(),
+                    "Auto-correction exception: " + e.getMessage());
+            transition(QueryState.ERROR);
+        }
     }
 
     /** 數據分析：LLM 分析查詢結果，產生 insights */

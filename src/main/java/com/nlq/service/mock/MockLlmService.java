@@ -77,6 +77,16 @@ public class MockLlmService implements LlmService {
         return "Based on the user's question, I need to query the orders table.\n<sql>" + sql + "</sql>";
     }
 
+    /** Mock SQL 自動修正 — 模擬修正後的 SQL */
+    @Override
+    public String textToSqlWithCorrection(String tablesInfo, String hints, Map<String, Object> promptMap,
+                                           String query, String modelId, List<Object> sqlExamples,
+                                           List<Object> nerExamples, String dialect,
+                                           String originalSql, String errorInfo) {
+        log.info("[Mock LLM] textToSqlWithCorrection: query={}, error={}", query, errorInfo);
+        return "After reviewing the error, here is the corrected SQL.\n<sql>SELECT COUNT(*) AS total FROM orders</sql>";
+    }
+
     /** Mock 知識搜索 — 直接回答 */
     @Override
     public String knowledgeSearch(String query, String modelId, Map<String, Object> promptMap) {

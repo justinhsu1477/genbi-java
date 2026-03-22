@@ -88,6 +88,36 @@ public class BedrockLlmService implements LlmService {
     }
 
     @Override
+    public String textToSqlWithCorrection(String tablesInfo, String hints, Map<String, Object> promptMap,
+                                           String query, String modelId, List<Object> sqlExamples,
+                                           List<Object> nerExamples, String dialect,
+                                           String originalSql, String errorInfo) {
+        log.info("[Bedrock] textToSqlWithCorrection: model={}, query={}, error={}", resolveModel(modelId), truncate(query), truncate(errorInfo));
+
+        String systemPrompt = extractPrompt(promptMap, "text_to_sql_prompt",
+                "You are a SQL expert. Generate SQL based on the given table schema, hints, and examples. "
+                + "Return the SQL wrapped in <sql></sql> tags. Dialect: " + dialect);
+
+        StringBuilder userMsg = new StringBuilder();
+        userMsg.append("## Table Schema\n").append(tablesInfo).append("\n\n");
+        if (hints != null && !hints.isBlank()) {
+            userMsg.append("## Hints\n").append(hints).append("\n\n");
+        }
+        if (!sqlExamples.isEmpty()) {
+            userMsg.append("## SQL Examples\n").append(sqlExamples).append("\n\n");
+        }
+        if (!nerExamples.isEmpty()) {
+            userMsg.append("## Entity Examples\n").append(nerExamples).append("\n\n");
+        }
+        userMsg.append("## Question\n").append(query).append("\n\n");
+        userMsg.append("NOTE: when I try to write a SQL <sql>").append(originalSql)
+                .append("</sql>, I got an error <error>").append(errorInfo)
+                .append("</error>. Please consider and avoid this problem.");
+
+        return invokeModel(resolveModel(modelId), systemPrompt, userMsg.toString(), bedrockProperties.maxTokens());
+    }
+
+    @Override
     public String knowledgeSearch(String query, String modelId, Map<String, Object> promptMap) {
         log.info("[Bedrock] knowledgeSearch: model={}, query={}", resolveModel(modelId), truncate(query));
 

@@ -40,6 +40,18 @@ public interface LlmService {
     /** 知識搜索（LLM 直接回答） */
     String knowledgeSearch(String query, String modelId, Map<String, Object> promptMap);
 
+    /**
+     * SQL 自動修正 — 將錯誤的 SQL 和錯誤訊息餵回 LLM 重新生成
+     *
+     * @param originalSql 原本生成的 SQL
+     * @param errorInfo   執行錯誤訊息
+     * @return 修正後的 SQL 回應文字
+     */
+    String textToSqlWithCorrection(String tablesInfo, String hints, Map<String, Object> promptMap,
+                                    String query, String modelId, List<Object> sqlExamples,
+                                    List<Object> nerExamples, String dialect,
+                                    String originalSql, String errorInfo);
+
     /** 數據分析 — 從查詢結果產生 insights */
     String dataAnalyse(String modelId, Map<String, Object> promptMap, String query, String dataJson, String type);
 
