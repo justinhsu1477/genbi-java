@@ -83,16 +83,7 @@ public class DbProfileService {
             }
         }
 
-        profile.setConnName(request.connName());
-        profile.setDbType(request.dbType());
-        profile.setDbUrl(request.dbUrl());
-        profile.setDbUsername(request.dbUsername());
-        profile.setDbPassword(request.dbPassword());
-        profile.setTablesInfo(request.tablesInfo());
-        profile.setHints(request.hints());
-        profile.setComments(request.comments());
-        profile.setRlsEnabled(Boolean.TRUE.equals(request.rlsEnabled()));
-        profile.setRlsConfig(request.rlsConfig());
+        profile.updateFrom(request);
 
         DbProfile saved = profileRepository.save(profile);
         log.info("[Profile] updated: {}", saved.getProfileName());

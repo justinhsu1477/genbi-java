@@ -1,5 +1,6 @@
 package com.nlq.entity;
 
+import com.nlq.dto.ProfileRequest;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -13,9 +14,8 @@ import java.time.LocalDateTime;
         @Index(name = "idx_profile_name", columnList = "profile_name", unique = true)
 })
 @Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 public class DbProfile {
 
@@ -50,12 +50,10 @@ public class DbProfile {
     @Column(name = "comments", columnDefinition = "TEXT")
     private String comments;
 
-    /** RLS 開關 */
     @Column(name = "rls_enabled")
     @Builder.Default
     private Boolean rlsEnabled = false;
 
-    /** RLS 設定（YAML 格式） */
     @Column(name = "rls_config", columnDefinition = "TEXT")
     private String rlsConfig;
 
@@ -74,5 +72,21 @@ public class DbProfile {
     @PreUpdate
     void preUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    // --- Domain method（取代 10 個 setter） ---
+
+    /** 從 ProfileRequest 更新所有可修改欄位 */
+    public void updateFrom(ProfileRequest request) {
+        this.connName = request.connName();
+        this.dbType = request.dbType();
+        this.dbUrl = request.dbUrl();
+        this.dbUsername = request.dbUsername();
+        this.dbPassword = request.dbPassword();
+        this.tablesInfo = request.tablesInfo();
+        this.hints = request.hints();
+        this.comments = request.comments();
+        this.rlsEnabled = Boolean.TRUE.equals(request.rlsEnabled());
+        this.rlsConfig = request.rlsConfig();
     }
 }

@@ -32,18 +32,18 @@ class DbProfileServiceTest {
     @InjectMocks DbProfileService profileService;
 
     private DbProfile buildProfile(String name) {
-        DbProfile p = new DbProfile();
-        p.setId(1L);
-        p.setProfileName(name);
-        p.setConnName("conn-" + name);
-        p.setDbType("mysql");
-        p.setDbUrl("jdbc:mysql://localhost:3306/test");
-        p.setTablesInfo("CREATE TABLE t1 (id INT)");
-        p.setHints("hint");
-        p.setRlsEnabled(false);
-        p.setCreatedAt(LocalDateTime.now());
-        p.setUpdatedAt(LocalDateTime.now());
-        return p;
+        return DbProfile.builder()
+                .id(1L)
+                .profileName(name)
+                .connName("conn-" + name)
+                .dbType("mysql")
+                .dbUrl("jdbc:mysql://localhost:3306/test")
+                .tablesInfo("CREATE TABLE t1 (id INT)")
+                .hints("hint")
+                .rlsEnabled(false)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
     }
 
     private ProfileRequest buildRequest(String name) {
@@ -101,11 +101,17 @@ class DbProfileServiceTest {
         void shouldCreate() {
             when(profileRepository.existsByProfileName("new-profile")).thenReturn(false);
             when(profileRepository.save(any())).thenAnswer(inv -> {
-                DbProfile p = inv.getArgument(0);
-                p.setId(1L);
-                p.setCreatedAt(LocalDateTime.now());
-                p.setUpdatedAt(LocalDateTime.now());
-                return p;
+                DbProfile original = inv.getArgument(0);
+                // 模擬 JPA save 後回傳帶 id 和時間的 entity
+                return DbProfile.builder()
+                        .id(1L)
+                        .profileName(original.getProfileName())
+                        .connName(original.getConnName())
+                        .dbType(original.getDbType())
+                        .dbUrl(original.getDbUrl())
+                        .createdAt(LocalDateTime.now())
+                        .updatedAt(LocalDateTime.now())
+                        .build();
             });
 
             ProfileResponse result = profileService.create(buildRequest("new-profile"));

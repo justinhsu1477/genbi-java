@@ -40,28 +40,28 @@ class SessionServiceTest {
     SessionService sessionService;
 
     private ChatSession buildSession(String sessionId, String userId) {
-        ChatSession s = new ChatSession();
-        s.setId(1L);
-        s.setSessionId(sessionId);
-        s.setUserId(userId);
-        s.setProfileName("demo");
-        s.setTitle("test query");
-        s.setCreatedAt(LocalDateTime.now());
-        s.setUpdatedAt(LocalDateTime.now());
-        return s;
+        return ChatSession.builder()
+                .id(1L)
+                .sessionId(sessionId)
+                .userId(userId)
+                .profileName("demo")
+                .title("test query")
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
     }
 
     private ChatMessage buildMessage(String sessionId, String query) {
-        ChatMessage m = new ChatMessage();
-        m.setId(1L);
-        m.setSessionId(sessionId);
-        m.setUserId("user1");
-        m.setProfileName("demo");
-        m.setQuery(query);
-        m.setQueryIntent("normal_search");
-        m.setSqlText("SELECT 1");
-        m.setCreatedAt(LocalDateTime.now());
-        return m;
+        return ChatMessage.builder()
+                .id(1L)
+                .sessionId(sessionId)
+                .userId("user1")
+                .profileName("demo")
+                .query(query)
+                .queryIntent("normal_search")
+                .sqlText("SELECT 1")
+                .createdAt(LocalDateTime.now())
+                .build();
     }
 
     @Nested

@@ -14,9 +14,8 @@ import java.time.LocalDateTime;
         @Index(name = "idx_session_profile", columnList = "profile_name")
 })
 @Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)  // JPA 需要，但外部不該用
+@AllArgsConstructor(access = AccessLevel.PRIVATE)    // 只給 Builder 用
 @Builder
 public class ChatSession {
 
@@ -51,5 +50,16 @@ public class ChatSession {
     @PreUpdate
     void preUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    // --- Domain methods（取代 setter） ---
+
+    /** 觸發 updatedAt 更新（JPA @PreUpdate 會自動設定時間） */
+    public void touch() {
+        // 只要 save() 就會觸發 @PreUpdate，不需要手動設定
+    }
+
+    public void updateTitle(String newTitle) {
+        this.title = newTitle;
     }
 }

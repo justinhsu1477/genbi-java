@@ -6,7 +6,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 /**
- * 用戶回饋 — upvote 會加入 RAG 做為範例，downvote 只做記錄
+ * 用戶回饋 — 建立後不可修改（upvote 會加入 RAG）
  */
 @Entity
 @Table(name = "user_feedbacks", indexes = {
@@ -14,9 +14,8 @@ import java.time.LocalDateTime;
         @Index(name = "idx_feedback_user", columnList = "user_id")
 })
 @Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 public class UserFeedback {
 
@@ -30,7 +29,6 @@ public class UserFeedback {
     @Column(name = "user_id", nullable = false, length = 64)
     private String userId;
 
-    // 對應的訊息 ID
     @Column(name = "message_id")
     private Long messageId;
 
@@ -38,15 +36,12 @@ public class UserFeedback {
     @Column(name = "feedback_type", nullable = false, length = 16)
     private String feedbackType;
 
-    // 用戶的查詢
     @Column(name = "query", columnDefinition = "TEXT")
     private String query;
 
-    // 對應的 SQL
     @Column(name = "sql_text", columnDefinition = "TEXT")
     private String sqlText;
 
-    // 用戶備註
     @Column(name = "comment", columnDefinition = "TEXT")
     private String comment;
 
@@ -57,4 +52,6 @@ public class UserFeedback {
     void prePersist() {
         this.createdAt = LocalDateTime.now();
     }
+
+    // 沒有 setter — feedback 建立後不可修改
 }

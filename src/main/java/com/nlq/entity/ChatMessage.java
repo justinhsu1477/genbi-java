@@ -6,7 +6,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 /**
- * 聊天訊息 — 紀錄每次問答的完整內容
+ * 聊天訊息 — 紀錄每次問答的完整內容（建立後不可修改）
  */
 @Entity
 @Table(name = "chat_messages", indexes = {
@@ -14,9 +14,8 @@ import java.time.LocalDateTime;
         @Index(name = "idx_message_user", columnList = "user_id")
 })
 @Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder
 public class ChatMessage {
 
@@ -33,11 +32,9 @@ public class ChatMessage {
     @Column(name = "profile_name", nullable = false, length = 128)
     private String profileName;
 
-    // 用戶原始查詢
     @Column(name = "query", nullable = false, columnDefinition = "TEXT")
     private String query;
 
-    // 改寫後的查詢
     @Column(name = "query_rewrite", columnDefinition = "TEXT")
     private String queryRewrite;
 
@@ -45,7 +42,6 @@ public class ChatMessage {
     @Column(name = "query_intent", length = 32)
     private String queryIntent;
 
-    // 生成的 SQL
     @Column(name = "sql_text", columnDefinition = "TEXT")
     private String sqlText;
 
@@ -53,7 +49,6 @@ public class ChatMessage {
     @Column(name = "answer", columnDefinition = "LONGTEXT")
     private String answer;
 
-    // 使用的模型 ID
     @Column(name = "model_id", length = 128)
     private String modelId;
 
@@ -64,4 +59,6 @@ public class ChatMessage {
     void prePersist() {
         this.createdAt = LocalDateTime.now();
     }
+
+    // 沒有 setter — message 建立後不可修改
 }

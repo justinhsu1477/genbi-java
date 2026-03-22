@@ -69,8 +69,8 @@ public class SessionService {
                         .title(query.length() > 50 ? query.substring(0, 50) + "..." : query)
                         .build()));
 
-        // 更新 session 的 updatedAt
-        session.setUpdatedAt(java.time.LocalDateTime.now());
+        // 觸發 @PreUpdate 更新 updatedAt
+        session.touch();
         sessionRepository.save(session);
 
         // 儲存訊息
