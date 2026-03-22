@@ -159,7 +159,7 @@ DATA_VISUALIZATION, SUGGEST_QUESTION, COMPLETE
 
 | Module | Files | Status |
 |--------|-------|--------|
-| **Project setup** | `pom.xml`, `NlqApplication.java`, `application.yml` | Done |
+| **Project setup** | `pom.xml`, `GenBiApplication.java`, `application.yml` | Done |
 | **Enums** | `QueryState.java`, `ContentType.java` | Done — 18 states mapped |
 | **DTOs** | `Question`, `Answer`, `ProcessingContext`, `SqlSearchResult`, `KnowledgeSearchResult`, `AgentSearchResult`, `TaskSqlSearchResult`, `AskRewriteResult`, `AskEntitySelect`, `ChartEntity`, `WsMessage`, `StateContent` | Done — all use `record` except `Answer` (mutable) |
 | **Service interfaces** | `LlmService`, `DatabaseService`, `RetrievalService`, `ProfileService` | Done |

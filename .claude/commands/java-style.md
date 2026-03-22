@@ -122,7 +122,7 @@ private ChatSession buildSession(String sessionId) {
 - 驗證失敗自動回傳 400 + 錯誤訊息
 
 ## 命名規範
-- Package: `com.nlq.{layer}` (controller, service, dto, entity, repository, config, exception, enums, statemachine)
+- Package: `com.lndata.genbi.{layer}` (controller, service, dto, entity, repository, config, exception, enums, statemachine)
 - Entity: 單數名詞 (`ChatSession`, `UserFeedback`)
 - Table: 複數蛇底線 (`chat_sessions`, `user_feedbacks`)
 - DTO: 動作 + 名詞 (`ProfileRequest`, `SessionResponse`)

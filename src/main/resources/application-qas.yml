@@ -19,4 +19,4 @@ spring:
 
 logging:
   level:
-    com.nlq: INFO
+    com.lndata.genbi: INFO

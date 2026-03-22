@@ -11,11 +11,11 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.nlq</groupId>
-    <artifactId>nlq-service</artifactId>
+    <groupId>com.lndata</groupId>
+    <artifactId>gen-bi</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>nlq-service</name>
-    <description>NLQ - Natural Language Query Service (refactored from Python)</description>
+    <name>gen-bi</name>
+    <description>GenBI - Generative BI Natural Language Query Service</description>
 
     <properties>
         <java.version>21</java.version>

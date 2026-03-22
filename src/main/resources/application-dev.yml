@@ -19,5 +19,5 @@ spring:
 
 logging:
   level:
-    com.nlq: DEBUG
+    com.lndata.genbi: DEBUG
     org.hibernate.SQL: DEBUG

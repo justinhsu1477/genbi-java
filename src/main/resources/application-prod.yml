@@ -16,5 +16,5 @@ spring:
 
 logging:
   level:
-    com.nlq: WARN
+    com.lndata.genbi: WARN
     root: INFO
