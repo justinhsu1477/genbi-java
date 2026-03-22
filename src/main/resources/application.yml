@@ -19,6 +19,7 @@ nlq:
     port: ${AOS_PORT:9200}
     username: ${AOS_USERNAME:admin}
     password: ${AOS_PASSWORD:admin}
+    scheme: ${AOS_SCHEME:https}
     sql-index: uba
     ner-index: uba_ner
     agent-index: uba_agent

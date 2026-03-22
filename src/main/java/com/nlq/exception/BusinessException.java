@@ -27,4 +27,8 @@ public class BusinessException extends RuntimeException {
     public static BusinessException badRequest(String message) {
         return new BusinessException(400, message);
     }
+
+    public static BusinessException serverError(String message) {
+        return new BusinessException(500, message);
+    }
 }

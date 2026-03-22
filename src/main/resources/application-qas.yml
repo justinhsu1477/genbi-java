@@ -1,6 +1,9 @@
 # ============================================================
 # QAS 測試環境 — Real Bedrock, QA database, Real OpenSearch
 # QAS profile — Real Bedrock, QA DB, Real OpenSearch
+#
+# 本地用 Docker OpenSearch:
+#   AOS_SCHEME=http AOS_HOST=localhost ./mvnw spring-boot:run --spring.profiles.active=qas
 # ============================================================
 
 spring:

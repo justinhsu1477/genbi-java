@@ -11,6 +11,7 @@ public record OpenSearchProperties(
         int port,
         String username,
         String password,
+        String scheme,
         String sqlIndex,
         String nerIndex,
         String agentIndex,
@@ -19,6 +20,7 @@ public record OpenSearchProperties(
     public OpenSearchProperties {
         if (host == null) host = "localhost";
         if (port <= 0) port = 9200;
+        if (scheme == null) scheme = "https";
         if (sqlIndex == null) sqlIndex = "uba";
         if (nerIndex == null) nerIndex = "uba_ner";
         if (agentIndex == null) agentIndex = "uba_agent";

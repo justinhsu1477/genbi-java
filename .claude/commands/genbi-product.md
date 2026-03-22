@@ -3,25 +3,33 @@
 檢查目前的實作是否符合產品化需求。
 
 ## 核心功能完成度
-- [ ] WebSocket `/qa/ws` 問答流程
-- [ ] 狀態機 4 條路徑 (normal, knowledge, reject, agent)
-- [ ] SQL 生成 + 執行 + 結果回傳
-- [ ] Auto Correction（SQL 錯誤自動重試）
-- [ ] 資料分析 (insights)
-- [ ] 建議問題生成
-- [ ] 圖表類型推薦
+- [x] WebSocket `/qa/ws` 問答流程 ✅
+- [x] 狀態機 4 條路徑 (normal, knowledge, reject, agent) ✅
+- [x] SQL 生成 + 執行 + 結果回傳 ✅
+- [x] Auto Correction（SQL 錯誤自動重試） ✅
+- [x] 資料分析 (insights) ✅
+- [x] 建議問題生成 ✅
+- [x] 圖表類型推薦 ✅
+
+## RAG 向量搜尋 (Phase 4)
+- [x] Bedrock Titan Embedding (1536 維) ✅
+- [x] OpenSearch KNN 向量搜尋 ✅
+- [x] 三索引: sql_index, ner_index, agent_index ✅
+- [x] 範例管理 REST API (CRUD) ✅
+- [x] 索引自動初始化 ✅
+- [x] 重複範例去重 (score=1.0) ✅
 
 ## Profile 管理
-- [ ] Profile CRUD API
+- [x] Profile CRUD API ✅
 - [ ] DDL 自動抓取（連上 DB 讀 schema）→ 未實作
-- [ ] Hints 管理（業務邏輯提示）
-- [ ] Prompt 模板管理 → 未實作
+- [x] Hints 管理（業務邏輯提示） ✅
+- [ ] Prompt 模板管理 → Phase 5 待做
 
 ## 安全性
 - [ ] Row Level Security (RLS) → 介面已預留
-- [ ] 多租戶隔離 (tenant_id) → 未實作
-- [ ] Auth 整合 (Lnfusion) → 未實作
-- [ ] 敏感資料不暴露（密碼、API Key）
+- [ ] 多租戶隔離 (tenant_id) → Phase 7 待做
+- [ ] Auth 整合 (Lnfusion) → Phase 7 待做
+- [x] 敏感資料不暴露（密碼、API Key） ✅
 
 ## 效能與成本
 - [ ] LLM Token 追蹤 → 未實作
@@ -30,10 +38,10 @@
 - [ ] 並行處理優化 → 未實作
 
 ## 多資料庫支援
-- [ ] MySQL ✅
+- [x] MySQL ✅
 - [ ] Oracle → 未測試
-- [ ] PostgreSQL → 未實作
-- [ ] SQL 方言自動適配
+- [ ] PostgreSQL → Phase 6 待做
+- [ ] SQL 方言自動適配 → Phase 5 待做
 
 ## 監控與維運
 - [ ] Health check endpoint

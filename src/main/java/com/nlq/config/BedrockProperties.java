@@ -7,10 +7,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties(prefix = "nlq.bedrock")
 public record BedrockProperties(
-        String modelId,
-        String region,
-        int maxTokens,
-        double temperature
+        String modelId, // 用哪個 LLM 模型
+        String region, //  AWS 區域
+        int maxTokens,     // 回傳最大 token 數
+        double temperature // 低溫度 = 更確定性的回答
 ) {
     // 預設值
     public BedrockProperties {

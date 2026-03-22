@@ -11,7 +11,7 @@
 | FastAPI router | `@RestController` | REST 端點 |
 | WebSocket endpoint | `TextWebSocketHandler` | WebSocket 處理 |
 | boto3 bedrock client | `BedrockRuntimeClient` (AWS SDK v2) | LLM 呼叫 |
-| OpenSearch client | 待實作 | RAG 向量搜索 |
+| OpenSearch client (`opensearch-py`) | `RestHighLevelClient` (opensearch-rest-high-level-client) | RAG 向量搜索 |
 | DynamoDB | JPA + MySQL/Oracle | Profile 儲存 |
 | Streamlit pages | 不需要 | 前端由其他團隊負責 |
 | `@app.get/post` | `@GetMapping/@PostMapping` | 路由 |
@@ -57,6 +57,48 @@ Python `utils/llm.py` → Java `LlmService` interface
 | `LogManagement` | `SessionService.saveMessage()` | 查詢記錄 |
 | `ConnectConfig` dataclass | `DbProfile` Entity 的欄位 | 連線設定 |
 
+## RAG / 向量搜尋對照 (Phase 4)
+
+Python `vector_store.py` + `opensearch.py` → Java `service/impl/`
+
+### Embedding (向量化)
+| Python | Java | 說明 |
+|--------|------|------|
+| `create_vector_embedding_with_bedrock()` | `BedrockEmbeddingService.createEmbedding()` | Titan Embedding API |
+| `embedding_info["embedding_name"]` | `amazon.titan-embed-text-v1` (常數) | 模型 ID |
+| `boto3.client('bedrock-runtime')` | `BedrockRuntimeClient` (AWS SDK v2) | 共用 Bedrock client |
+
+### OpenSearch 向量搜尋
+| Python | Java | 說明 |
+|--------|------|------|
+| `OpenSearchDao.__init__()` | `OpenSearchConfig` (@Bean) | 建立連線 |
+| `search_sample_with_embedding()` | `OpenSearchRetrievalService.knnSearch()` | 核心 KNN 搜尋 |
+| `retrieve_samples()` | `OpenSearchSampleManagementService.retrieveAllByProfile()` | 列出範例 |
+| `add_sample()` / `add_entity_sample()` | `OpenSearchSampleManagementService.addSqlSample()` / `addEntitySample()` | 新增範例 |
+| `delete_sample()` | `OpenSearchSampleManagementService.deleteDocument()` | 刪除範例 |
+| `search_same_query()` (score == 1.0 去重) | `deleteDuplicateIfExists()` | 新增前去重 |
+| `opensearch_index_init()` | `OpenSearchIndexInitializer` (@EventListener) | 啟動時自動建立索引 |
+
+### OpenSearch 三個索引
+| 索引名稱 | 用途 | Python 入口 | Java 入口 |
+|----------|------|------------|-----------|
+| `uba` (sql_index) | SQL 問答範例，few-shot 用 | `VectorStore.add_sample()` | `SampleManagementService.addSqlSample()` |
+| `uba_ner` (ner_index) | Entity/NER 實體，消歧 + WHERE 條件 | `VectorStore.add_entity_sample()` | `SampleManagementService.addEntitySample()` |
+| `uba_agent` (agent_index) | Agent COT 複雜查詢拆解範例 | `VectorStore.add_agent_cot_sample()` | `SampleManagementService.addAgentCotSample()` |
+
+### 範例管理 REST 端點 (取代 Streamlit 管理頁面)
+| 端點 | 說明 |
+|------|------|
+| `GET /api/v1/samples/sql?profile_name=xxx` | 列出 SQL 範例 |
+| `POST /api/v1/samples/sql` | 新增 SQL 範例 |
+| `DELETE /api/v1/samples/sql/{docId}` | 刪除 SQL 範例 |
+| `GET /api/v1/samples/entities?profile_name=xxx` | 列出 Entity 範例 |
+| `POST /api/v1/samples/entities` | 新增 Entity 範例 |
+| `DELETE /api/v1/samples/entities/{docId}` | 刪除 Entity 範例 |
+| `GET /api/v1/samples/agents?profile_name=xxx` | 列出 Agent COT 範例 |
+| `POST /api/v1/samples/agents` | 新增 Agent COT 範例 |
+| `DELETE /api/v1/samples/agents/{docId}` | 刪除 Agent COT 範例 |
+
 ## 轉換注意事項
 
 1. **Python dict → Java Map**: Python 大量用 dict，Java 盡量用具體型別 (record/class)
@@ -71,9 +113,15 @@ Python `utils/llm.py` → Java `LlmService` interface
 
 | 功能 | Python 位置 | 優先級 | 狀態 |
 |------|------------|--------|------|
-| Row Level Security | `datasource/base.py` | 中 | 介面已預留 |
+| OpenSearch RAG 向量搜尋 | `vector_store.py` + `opensearch.py` | 高 | ✅ Phase 4 完成 |
+| Bedrock Titan Embedding | `utils/llm.py` embedding | 高 | ✅ Phase 4 完成 |
+| 範例管理 CRUD | Streamlit Index/Entity/Agent 頁面 | 高 | ✅ Phase 4 完成 (REST API) |
+| Prompt 模板管理 | `utils/prompts/` | 高 | **Phase 5 待做** |
+| 多資料庫方言 | `utils/prompt.py` (6 種 dialect) | 中 | **Phase 5 待做** |
+| Row Level Security | `datasource/base.py` | 中 | 介面已預留，待 auth 整合 |
+| 多 DB 動態連線 | `ConnectionManagement` + factory | 中 | **Phase 6 待做** |
+| 多租戶 User Profile | `user_profile.py` | 中 | **Phase 7 待做** |
 | Token 追蹤 | `state_machine.py` token_info | 低 | 未做 |
-| Prompt 模板管理 | `utils/prompts/` | 中 | Bedrock 內嵌預設 |
 | Entity 同名消歧 UI | `state_machine.py` ASK_ENTITY_SELECT | 低 | 狀態機已有 |
 | Streamlit 管理頁面 | `pages/` | 不需要 | 前端另做 |
 | SageMaker Endpoint | `utils/llm.py` | 低 | 只用 Bedrock |
