@@ -1,9 +1,9 @@
 package com.lndata.genbi.service;
 
-import com.lndata.genbi.dto.MessageResponse;
-import com.lndata.genbi.dto.SessionResponse;
-import com.lndata.genbi.entity.ChatMessage;
-import com.lndata.genbi.entity.ChatSession;
+import com.lndata.genbi.model.dto.MessageResponse;
+import com.lndata.genbi.model.dto.SessionResponse;
+import com.lndata.genbi.model.entity.ChatMessage;
+import com.lndata.genbi.model.entity.ChatSession;
 import com.lndata.genbi.exception.BusinessException;
 import com.lndata.genbi.repository.ChatMessageRepository;
 import com.lndata.genbi.repository.ChatSessionRepository;
@@ -16,7 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -40,28 +40,28 @@ class SessionServiceTest {
     SessionService sessionService;
 
     private ChatSession buildSession(String sessionId, String userId) {
-        return ChatSession.builder()
-                .id(1L)
-                .sessionId(sessionId)
-                .userId(userId)
-                .profileName("demo")
-                .title("test query")
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
+        ChatSession session = new ChatSession();
+        session.setId(1L);
+        session.setSessionId(sessionId);
+        session.setUserId(userId);
+        session.setProfileName("demo");
+        session.setTitle("test query");
+        session.setCreatedAt(Instant.now());
+        session.setUpdatedAt(Instant.now());
+        return session;
     }
 
     private ChatMessage buildMessage(String sessionId, String query) {
-        return ChatMessage.builder()
-                .id(1L)
-                .sessionId(sessionId)
-                .userId("user1")
-                .profileName("demo")
-                .query(query)
-                .queryIntent("normal_search")
-                .sqlText("SELECT 1")
-                .createdAt(LocalDateTime.now())
-                .build();
+        ChatMessage msg = new ChatMessage();
+        msg.setId(1L);
+        msg.setSessionId(sessionId);
+        msg.setUserId("user1");
+        msg.setProfileName("demo");
+        msg.setQuery(query);
+        msg.setQueryIntent("normal_search");
+        msg.setSqlText("SELECT 1");
+        msg.setCreatedAt(Instant.now());
+        return msg;
     }
 
     @Nested

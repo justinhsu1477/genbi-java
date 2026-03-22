@@ -1,8 +1,8 @@
 package com.lndata.genbi.service;
 
-import com.lndata.genbi.dto.ProfileRequest;
-import com.lndata.genbi.dto.ProfileResponse;
-import com.lndata.genbi.entity.DbProfile;
+import com.lndata.genbi.model.dto.ProfileRequest;
+import com.lndata.genbi.model.dto.ProfileResponse;
+import com.lndata.genbi.model.entity.DbProfile;
 import com.lndata.genbi.exception.BusinessException;
 import com.lndata.genbi.repository.DbProfileRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -13,7 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,18 +32,18 @@ class DbProfileServiceTest {
     @InjectMocks DbProfileService profileService;
 
     private DbProfile buildProfile(String name) {
-        return DbProfile.builder()
-                .id(1L)
-                .profileName(name)
-                .connName("conn-" + name)
-                .dbType("mysql")
-                .dbUrl("jdbc:mysql://localhost:3306/test")
-                .tablesInfo("CREATE TABLE t1 (id INT)")
-                .hints("hint")
-                .rlsEnabled(false)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
+        DbProfile p = new DbProfile();
+        p.setId(1L);
+        p.setProfileName(name);
+        p.setConnName("conn-" + name);
+        p.setDbType("mysql");
+        p.setDbUrl("jdbc:mysql://localhost:3306/test");
+        p.setTablesInfo("CREATE TABLE t1 (id INT)");
+        p.setHints("hint");
+        p.setRlsEnabled(false);
+        p.setCreatedAt(Instant.now());
+        p.setUpdatedAt(Instant.now());
+        return p;
     }
 
     private ProfileRequest buildRequest(String name) {
@@ -103,15 +103,15 @@ class DbProfileServiceTest {
             when(profileRepository.save(any())).thenAnswer(inv -> {
                 DbProfile original = inv.getArgument(0);
                 // 模擬 JPA save 後回傳帶 id 和時間的 entity
-                return DbProfile.builder()
-                        .id(1L)
-                        .profileName(original.getProfileName())
-                        .connName(original.getConnName())
-                        .dbType(original.getDbType())
-                        .dbUrl(original.getDbUrl())
-                        .createdAt(LocalDateTime.now())
-                        .updatedAt(LocalDateTime.now())
-                        .build();
+                DbProfile saved = new DbProfile();
+                saved.setId(1L);
+                saved.setProfileName(original.getProfileName());
+                saved.setConnName(original.getConnName());
+                saved.setDbType(original.getDbType());
+                saved.setDbUrl(original.getDbUrl());
+                saved.setCreatedAt(Instant.now());
+                saved.setUpdatedAt(Instant.now());
+                return saved;
             });
 
             ProfileResponse result = profileService.create(buildRequest("new-profile"));

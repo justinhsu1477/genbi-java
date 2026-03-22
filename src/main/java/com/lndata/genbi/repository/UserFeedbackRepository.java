@@ -1,6 +1,6 @@
 package com.lndata.genbi.repository;
 
-import com.lndata.genbi.entity.UserFeedback;
+import com.lndata.genbi.model.entity.UserFeedback;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

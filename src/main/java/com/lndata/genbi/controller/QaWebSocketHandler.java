@@ -1,9 +1,9 @@
 package com.lndata.genbi.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.lndata.genbi.dto.*;
-import com.lndata.genbi.enums.ContentType;
-import com.lndata.genbi.enums.QueryState;
+import com.lndata.genbi.model.dto.*;
+import com.lndata.genbi.model.constant.ContentType;
+import com.lndata.genbi.model.constant.QueryState;
 import com.lndata.genbi.service.DatabaseService;
 import com.lndata.genbi.service.LlmService;
 import com.lndata.genbi.service.ProfileService;

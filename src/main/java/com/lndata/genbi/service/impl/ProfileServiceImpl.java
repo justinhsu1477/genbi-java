@@ -2,8 +2,8 @@ package com.lndata.genbi.service.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.lndata.genbi.entity.ChatMessage;
-import com.lndata.genbi.entity.DbProfile;
+import com.lndata.genbi.model.entity.ChatMessage;
+import com.lndata.genbi.model.entity.DbProfile;
 import com.lndata.genbi.repository.ChatMessageRepository;
 import com.lndata.genbi.repository.DbProfileRepository;
 import com.lndata.genbi.service.ProfileService;
@@ -77,15 +77,14 @@ public class ProfileServiceImpl implements ProfileService {
     @Override
     public void addLog(String logId, String userId, String sessionId, String profileName,
                        String sql, String query, String intent, String logInfo) {
-        ChatMessage message = ChatMessage.builder()
-                .sessionId(sessionId)
-                .userId(userId)
-                .profileName(profileName)
-                .query(query)
-                .sqlText(sql)
-                .queryIntent(intent)
-                .answer(logInfo)
-                .build();
+        ChatMessage message = new ChatMessage();
+        message.setSessionId(sessionId);
+        message.setUserId(userId);
+        message.setProfileName(profileName);
+        message.setQuery(query);
+        message.setSqlText(sql);
+        message.setQueryIntent(intent);
+        message.setAnswer(logInfo);
 
         messageRepository.save(message);
         log.info("[ProfileService] addLog: user={}, session={}, intent={}", userId, sessionId, intent);

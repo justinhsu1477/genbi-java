@@ -1,6 +1,6 @@
 package com.lndata.genbi.service;
 
-import com.lndata.genbi.dto.*;
+import com.lndata.genbi.model.dto.*;
 
 import java.util.List;
 

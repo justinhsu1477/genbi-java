@@ -1,7 +1,10 @@
 package com.lndata.genbi.controller;
 
 import com.lndata.genbi.config.BedrockProperties;
-import com.lndata.genbi.dto.*;
+import com.lndata.genbi.model.dto.*;
+import com.lndata.genbi.model.response.BaseListResponse;
+import com.lndata.genbi.model.response.BaseRestResponse;
+import com.lndata.genbi.model.response.BaseSingleResponse;
 import com.lndata.genbi.service.FeedbackService;
 import com.lndata.genbi.service.ProfileService;
 import com.lndata.genbi.service.SessionService;
@@ -32,7 +35,7 @@ public class QaController {
     /** 取得可用的 profile 和模型列表 */
     @GetMapping("/option")
     @Operation(summary = "取得選項 / Get options", description = "返回可用 profile 和模型列表")
-    public ApiResponse<OptionResponse> getOption() {
+    public BaseSingleResponse<OptionResponse> getOption() {
         var profiles = profileService.getAllProfiles();
         List<String> profileNames = List.copyOf(profiles.keySet());
 
@@ -43,7 +46,7 @@ public class QaController {
                 "anthropic.claude-3-haiku-20240307-v1:0"
         );
 
-        return ApiResponse.ok(new OptionResponse(profileNames, models, bedrockProperties.modelId()));
+        return BaseSingleResponse.success("OK", new OptionResponse(profileNames, models, bedrockProperties.modelId()));
     }
 
     // ===== GET /qa/sessions =====
@@ -51,8 +54,8 @@ public class QaController {
     /** 取得用戶的所有 session */
     @GetMapping("/sessions")
     @Operation(summary = "取得 Session 列表 / Get sessions")
-    public ApiResponse<List<SessionResponse>> getSessions(@RequestParam String userId) {
-        return ApiResponse.ok(sessionService.getSessionsByUser(userId));
+    public BaseListResponse<SessionResponse> getSessions(@RequestParam String userId) {
+        return BaseListResponse.success("OK", sessionService.getSessionsByUser(userId));
     }
 
     // ===== GET /qa/sessions/{sessionId} =====
@@ -60,8 +63,8 @@ public class QaController {
     /** 取得 session 內的所有訊息 */
     @GetMapping("/sessions/{sessionId}")
     @Operation(summary = "取得 Session 訊息 / Get session messages")
-    public ApiResponse<List<MessageResponse>> getSessionMessages(@PathVariable String sessionId) {
-        return ApiResponse.ok(sessionService.getMessagesBySession(sessionId));
+    public BaseListResponse<MessageResponse> getSessionMessages(@PathVariable String sessionId) {
+        return BaseListResponse.success("OK", sessionService.getMessagesBySession(sessionId));
     }
 
     // ===== DELETE /qa/sessions/{sessionId} =====
@@ -69,9 +72,9 @@ public class QaController {
     /** 刪除 session 及其所有訊息 */
     @DeleteMapping("/sessions/{sessionId}")
     @Operation(summary = "刪除 Session / Delete session")
-    public ApiResponse<Void> deleteSession(@PathVariable String sessionId) {
+    public BaseRestResponse deleteSession(@PathVariable String sessionId) {
         sessionService.deleteSession(sessionId);
-        return ApiResponse.ok();
+        return BaseRestResponse.success("OK");
     }
 
     // ===== POST /qa/feedback =====
@@ -79,8 +82,8 @@ public class QaController {
     /** 提交用戶回饋（讚/踩） */
     @PostMapping("/feedback")
     @Operation(summary = "提交回饋 / Submit feedback")
-    public ApiResponse<Void> submitFeedback(@Valid @RequestBody FeedbackRequest request) {
+    public BaseRestResponse submitFeedback(@Valid @RequestBody FeedbackRequest request) {
         feedbackService.saveFeedback(request);
-        return ApiResponse.ok();
+        return BaseRestResponse.success("OK");
     }
 }

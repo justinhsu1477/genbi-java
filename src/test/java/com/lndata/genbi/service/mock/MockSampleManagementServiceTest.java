@@ -1,6 +1,6 @@
 package com.lndata.genbi.service.mock;
 
-import com.lndata.genbi.dto.*;
+import com.lndata.genbi.model.dto.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

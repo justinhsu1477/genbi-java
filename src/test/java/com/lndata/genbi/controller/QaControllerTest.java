@@ -2,9 +2,9 @@ package com.lndata.genbi.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lndata.genbi.config.BedrockProperties;
-import com.lndata.genbi.dto.FeedbackRequest;
-import com.lndata.genbi.dto.MessageResponse;
-import com.lndata.genbi.dto.SessionResponse;
+import com.lndata.genbi.model.dto.FeedbackRequest;
+import com.lndata.genbi.model.dto.MessageResponse;
+import com.lndata.genbi.model.dto.SessionResponse;
 import com.lndata.genbi.exception.BusinessException;
 import com.lndata.genbi.exception.GlobalExceptionHandler;
 import com.lndata.genbi.service.FeedbackService;
@@ -22,7 +22,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -68,7 +68,7 @@ class QaControllerTest {
 
             mockMvc.perform(get("/qa/option"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value(200))
+                    .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.profiles", hasSize(1)))
                     .andExpect(jsonPath("$.data.profiles[0]").value("demo"))
                     .andExpect(jsonPath("$.data.bedrockModelIds", hasSize(3)))
@@ -83,14 +83,14 @@ class QaControllerTest {
         @Test
         @DisplayName("回傳用戶的 session 列表")
         void shouldReturnSessions() throws Exception {
-            LocalDateTime now = LocalDateTime.of(2026, 3, 20, 12, 0);
+            Instant now = Instant.parse("2026-03-20T04:00:00Z");
             when(sessionService.getSessionsByUser("user1")).thenReturn(List.of(
                     new SessionResponse("s1", "user1", "demo", "test", now, now)
             ));
 
             mockMvc.perform(get("/qa/sessions").param("userId", "user1"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value(200))
+                    .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data", hasSize(1)))
                     .andExpect(jsonPath("$.data[0].sessionId").value("s1"));
         }
@@ -100,7 +100,7 @@ class QaControllerTest {
         void shouldReturn400WhenMissingUserId() throws Exception {
             mockMvc.perform(get("/qa/sessions"))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(400));
+                    .andExpect(jsonPath("$.success").value(false));
         }
     }
 
@@ -111,7 +111,7 @@ class QaControllerTest {
         @Test
         @DisplayName("回傳 session 內訊息")
         void shouldReturnMessages() throws Exception {
-            LocalDateTime now = LocalDateTime.of(2026, 3, 20, 12, 0);
+            Instant now = Instant.parse("2026-03-20T04:00:00Z");
             when(sessionService.getMessagesBySession("s1")).thenReturn(List.of(
                     new MessageResponse(1L, "show orders", "show orders", "normal_search",
                             "SELECT * FROM orders", "{}", "claude-3", now)
@@ -131,7 +131,7 @@ class QaControllerTest {
 
             mockMvc.perform(get("/qa/sessions/bad"))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.code").value(404))
+                    .andExpect(jsonPath("$.success").value(false))
                     .andExpect(jsonPath("$.message", containsString("not found")));
         }
     }
@@ -147,7 +147,7 @@ class QaControllerTest {
 
             mockMvc.perform(delete("/qa/sessions/s1"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value(200));
+                    .andExpect(jsonPath("$.success").value(true));
 
             verify(sessionService).deleteSession("s1");
         }
@@ -167,7 +167,7 @@ class QaControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req)))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value(200));
+                    .andExpect(jsonPath("$.success").value(true));
 
             verify(feedbackService).saveFeedback(any(FeedbackRequest.class));
         }
@@ -184,7 +184,7 @@ class QaControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(400));
+                    .andExpect(jsonPath("$.success").value(false));
         }
 
         @Test
@@ -198,7 +198,7 @@ class QaControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(body))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value(400));
+                    .andExpect(jsonPath("$.success").value(false));
         }
     }
 }

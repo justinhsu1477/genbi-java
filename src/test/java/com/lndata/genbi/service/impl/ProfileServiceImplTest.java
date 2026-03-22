@@ -1,8 +1,8 @@
 package com.lndata.genbi.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.lndata.genbi.entity.ChatMessage;
-import com.lndata.genbi.entity.DbProfile;
+import com.lndata.genbi.model.entity.ChatMessage;
+import com.lndata.genbi.model.entity.DbProfile;
 import com.lndata.genbi.repository.ChatMessageRepository;
 import com.lndata.genbi.repository.DbProfileRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -15,7 +15,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -35,34 +35,34 @@ class ProfileServiceImplTest {
     @InjectMocks ProfileServiceImpl profileService;
 
     private DbProfile buildProfile(String name, String promptMapJson) {
-        return DbProfile.builder()
-                .id(1L)
-                .profileName(name)
-                .connName("conn-" + name)
-                .dbType("mysql")
-                .dbUrl("jdbc:mysql://localhost:3306/test")
-                .dbUsername("user")
-                .dbPassword("pass")
-                .tablesInfo("CREATE TABLE t1 (id INT)")
-                .hints("hint")
-                .comments("comment")
-                .promptMap(promptMapJson)
-                .rlsEnabled(false)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
+        DbProfile p = new DbProfile();
+        p.setId(1L);
+        p.setProfileName(name);
+        p.setConnName("conn-" + name);
+        p.setDbType("mysql");
+        p.setDbUrl("jdbc:mysql://localhost:3306/test");
+        p.setDbUsername("user");
+        p.setDbPassword("pass");
+        p.setTablesInfo("CREATE TABLE t1 (id INT)");
+        p.setHints("hint");
+        p.setComments("comment");
+        p.setPromptMap(promptMapJson);
+        p.setRlsEnabled(false);
+        p.setCreatedAt(Instant.now());
+        p.setUpdatedAt(Instant.now());
+        return p;
     }
 
     private ChatMessage buildMessage(String query) {
-        return ChatMessage.builder()
-                .id(1L)
-                .sessionId("s1")
-                .userId("u1")
-                .profileName("p1")
-                .query(query)
-                .queryIntent("normal_search")
-                .createdAt(LocalDateTime.now())
-                .build();
+        ChatMessage msg = new ChatMessage();
+        msg.setId(1L);
+        msg.setSessionId("s1");
+        msg.setUserId("u1");
+        msg.setProfileName("p1");
+        msg.setQuery(query);
+        msg.setQueryIntent("normal_search");
+        msg.setCreatedAt(Instant.now());
+        return msg;
     }
 
     @Nested

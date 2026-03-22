@@ -1,8 +1,8 @@
 package com.lndata.genbi.service;
 
-import com.lndata.genbi.dto.ProfileRequest;
-import com.lndata.genbi.dto.ProfileResponse;
-import com.lndata.genbi.entity.DbProfile;
+import com.lndata.genbi.model.dto.ProfileRequest;
+import com.lndata.genbi.model.dto.ProfileResponse;
+import com.lndata.genbi.model.entity.DbProfile;
 import com.lndata.genbi.exception.BusinessException;
 import com.lndata.genbi.repository.DbProfileRepository;
 import lombok.RequiredArgsConstructor;
@@ -51,19 +51,18 @@ public class DbProfileService {
             }
         }
 
-        DbProfile profile = DbProfile.builder()
-                .profileName(request.profileName())
-                .connName(request.connName())
-                .dbType(request.dbType())
-                .dbUrl(request.dbUrl())
-                .dbUsername(request.dbUsername())
-                .dbPassword(request.dbPassword())
-                .tablesInfo(request.tablesInfo())
-                .hints(request.hints())
-                .comments(request.comments())
-                .rlsEnabled(Boolean.TRUE.equals(request.rlsEnabled()))
-                .rlsConfig(request.rlsConfig())
-                .build();
+        DbProfile profile = new DbProfile();
+        profile.setProfileName(request.profileName());
+        profile.setConnName(request.connName());
+        profile.setDbType(request.dbType());
+        profile.setDbUrl(request.dbUrl());
+        profile.setDbUsername(request.dbUsername());
+        profile.setDbPassword(request.dbPassword());
+        profile.setTablesInfo(request.tablesInfo());
+        profile.setHints(request.hints());
+        profile.setComments(request.comments());
+        profile.setRlsEnabled(Boolean.TRUE.equals(request.rlsEnabled()));
+        profile.setRlsConfig(request.rlsConfig());
 
         DbProfile saved = profileRepository.save(profile);
         log.info("[Profile] created: {}", saved.getProfileName());

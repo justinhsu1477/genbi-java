@@ -1,7 +1,7 @@
 package com.lndata.genbi.service;
 
-import com.lndata.genbi.dto.FeedbackRequest;
-import com.lndata.genbi.entity.UserFeedback;
+import com.lndata.genbi.model.dto.FeedbackRequest;
+import com.lndata.genbi.model.entity.UserFeedback;
 import com.lndata.genbi.repository.UserFeedbackRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,15 +22,15 @@ public class FeedbackService {
         log.info("[Feedback] saveFeedback: session={}, type={}, user={}",
                 request.sessionId(), request.feedbackType(), request.userId());
 
-        feedbackRepository.save(UserFeedback.builder()
-                .sessionId(request.sessionId())
-                .userId(request.userId())
-                .messageId(request.messageId())
-                .feedbackType(request.feedbackType())
-                .query(request.query())
-                .sqlText(request.sqlText())
-                .comment(request.comment())
-                .build());
+        UserFeedback feedback = new UserFeedback();
+        feedback.setSessionId(request.sessionId());
+        feedback.setUserId(request.userId());
+        feedback.setMessageId(request.messageId());
+        feedback.setFeedbackType(request.feedbackType());
+        feedback.setQuery(request.query());
+        feedback.setSqlText(request.sqlText());
+        feedback.setComment(request.comment());
+        feedbackRepository.save(feedback);
 
         // TODO: upvote 時加入 OpenSearch RAG 索引
         if ("upvote".equals(request.feedbackType())) {

@@ -1,6 +1,6 @@
 package com.lndata.genbi.repository;
 
-import com.lndata.genbi.entity.DbProfile;
+import com.lndata.genbi.model.entity.DbProfile;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

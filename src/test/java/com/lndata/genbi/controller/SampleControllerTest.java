@@ -1,7 +1,7 @@
 package com.lndata.genbi.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.lndata.genbi.dto.*;
+import com.lndata.genbi.model.dto.*;
 import com.lndata.genbi.exception.GlobalExceptionHandler;
 import com.lndata.genbi.service.SampleManagementService;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,7 +58,7 @@ class SampleControllerTest {
 
             mockMvc.perform(get("/api/v1/samples/sql").param("profile_name", "demo"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value(200))
+                    .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data", hasSize(1)))
                     .andExpect(jsonPath("$.data[0].id").value("doc1"))
                     .andExpect(jsonPath("$.data[0].source.text").value("total sales"));
@@ -73,7 +73,7 @@ class SampleControllerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(objectMapper.writeValueAsString(req)))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.code").value(200));
+                    .andExpect(jsonPath("$.success").value(true));
 
             verify(sampleManagementService).addSqlSample(any(SqlSampleRequest.class));
         }

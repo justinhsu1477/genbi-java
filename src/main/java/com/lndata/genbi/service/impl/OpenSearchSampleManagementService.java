@@ -1,7 +1,7 @@
 package com.lndata.genbi.service.impl;
 
 import com.lndata.genbi.config.OpenSearchProperties;
-import com.lndata.genbi.dto.*;
+import com.lndata.genbi.model.dto.*;
 import com.lndata.genbi.exception.BusinessException;
 import com.lndata.genbi.service.EmbeddingService;
 import com.lndata.genbi.service.SampleManagementService;

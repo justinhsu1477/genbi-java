@@ -1,7 +1,7 @@
 package com.lndata.genbi.statemachine;
 
-import com.lndata.genbi.dto.ProcessingContext;
-import com.lndata.genbi.enums.QueryState;
+import com.lndata.genbi.model.dto.ProcessingContext;
+import com.lndata.genbi.model.constant.QueryState;
 import com.lndata.genbi.service.DatabaseService;
 import com.lndata.genbi.service.LlmService;
 import com.lndata.genbi.service.RetrievalService;

@@ -1,6 +1,6 @@
 package com.lndata.genbi.repository;
 
-import com.lndata.genbi.entity.ChatMessage;
+import com.lndata.genbi.model.entity.ChatMessage;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 

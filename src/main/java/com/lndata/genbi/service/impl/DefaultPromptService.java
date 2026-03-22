@@ -1,6 +1,6 @@
 package com.lndata.genbi.service.impl;
 
-import com.lndata.genbi.enums.PromptType;
+import com.lndata.genbi.model.constant.PromptType;
 import com.lndata.genbi.service.PromptService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

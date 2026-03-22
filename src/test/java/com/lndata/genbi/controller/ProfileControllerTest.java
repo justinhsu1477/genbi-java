@@ -1,8 +1,8 @@
 package com.lndata.genbi.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.lndata.genbi.dto.ProfileRequest;
-import com.lndata.genbi.dto.ProfileResponse;
+import com.lndata.genbi.model.dto.ProfileRequest;
+import com.lndata.genbi.model.dto.ProfileResponse;
 import com.lndata.genbi.exception.BusinessException;
 import com.lndata.genbi.exception.GlobalExceptionHandler;
 import com.lndata.genbi.service.DbProfileService;
@@ -17,7 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 import static org.hamcrest.Matchers.*;
@@ -47,7 +47,7 @@ class ProfileControllerTest {
     }
 
     private ProfileResponse buildResponse(String name) {
-        LocalDateTime now = LocalDateTime.of(2026, 3, 22, 12, 0);
+        Instant now = Instant.parse("2026-03-22T04:00:00Z");
         return new ProfileResponse(1L, name, "conn", "mysql",
                 "jdbc:mysql://localhost/db", "CREATE TABLE t1 (id INT)", "hint", "comment",
                 null, false, now, now);
@@ -82,7 +82,7 @@ class ProfileControllerTest {
 
         mockMvc.perform(get("/qa/profiles/bad"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value(404));
+                .andExpect(jsonPath("$.success").value(false));
     }
 
     @Test
@@ -120,7 +120,7 @@ class ProfileControllerTest {
         when(profileService.update(eq("p1"), any())).thenReturn(
                 new ProfileResponse(1L, "p1", "conn2", "oracle",
                         "jdbc:oracle:thin:@localhost:1521/xe", "DDL2", "hint2", null,
-                        null, false, LocalDateTime.now(), LocalDateTime.now()));
+                        null, false, Instant.now(), Instant.now()));
 
         mockMvc.perform(put("/qa/profiles/p1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -136,6 +136,6 @@ class ProfileControllerTest {
 
         mockMvc.perform(delete("/qa/profiles/p1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(200));
+                .andExpect(jsonPath("$.success").value(true));
     }
 }

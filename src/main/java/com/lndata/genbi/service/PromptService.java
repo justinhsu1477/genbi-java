@@ -1,6 +1,6 @@
 package com.lndata.genbi.service;
 
-import com.lndata.genbi.enums.PromptType;
+import com.lndata.genbi.model.constant.PromptType;
 
 import java.util.Map;
 

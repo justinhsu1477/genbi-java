@@ -1,5 +1,6 @@
 package com.lndata.genbi.enums;
 
+import com.lndata.genbi.model.constant.PromptType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

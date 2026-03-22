@@ -1,9 +1,9 @@
 package com.lndata.genbi.service;
 
-import com.lndata.genbi.dto.MessageResponse;
-import com.lndata.genbi.dto.SessionResponse;
-import com.lndata.genbi.entity.ChatMessage;
-import com.lndata.genbi.entity.ChatSession;
+import com.lndata.genbi.model.dto.MessageResponse;
+import com.lndata.genbi.model.dto.SessionResponse;
+import com.lndata.genbi.model.entity.ChatMessage;
+import com.lndata.genbi.model.entity.ChatSession;
 import com.lndata.genbi.exception.BusinessException;
 import com.lndata.genbi.repository.ChatMessageRepository;
 import com.lndata.genbi.repository.ChatSessionRepository;
@@ -62,29 +62,31 @@ public class SessionService {
                             String sqlText, String answerJson, String modelId) {
         // 確保 session 存在，不存在就建立
         ChatSession session = sessionRepository.findBySessionId(sessionId)
-                .orElseGet(() -> sessionRepository.save(ChatSession.builder()
-                        .sessionId(sessionId)
-                        .userId(userId)
-                        .profileName(profileName)
-                        .title(query.length() > 50 ? query.substring(0, 50) + "..." : query)
-                        .build()));
+                .orElseGet(() -> {
+                    ChatSession newSession = new ChatSession();
+                    newSession.setSessionId(sessionId);
+                    newSession.setUserId(userId);
+                    newSession.setProfileName(profileName);
+                    newSession.setTitle(query.length() > 50 ? query.substring(0, 50) + "..." : query);
+                    return sessionRepository.save(newSession);
+                });
 
-        // 觸發 @PreUpdate 更新 updatedAt
+        // 觸發 @LastModifiedDate 更新 updatedAt
         session.touch();
         sessionRepository.save(session);
 
         // 儲存訊息
-        messageRepository.save(ChatMessage.builder()
-                .sessionId(sessionId)
-                .userId(userId)
-                .profileName(profileName)
-                .query(query)
-                .queryRewrite(queryRewrite)
-                .queryIntent(queryIntent)
-                .sqlText(sqlText)
-                .answer(answerJson)
-                .modelId(modelId)
-                .build());
+        ChatMessage msg = new ChatMessage();
+        msg.setSessionId(sessionId);
+        msg.setUserId(userId);
+        msg.setProfileName(profileName);
+        msg.setQuery(query);
+        msg.setQueryRewrite(queryRewrite);
+        msg.setQueryIntent(queryIntent);
+        msg.setSqlText(sqlText);
+        msg.setAnswer(answerJson);
+        msg.setModelId(modelId);
+        messageRepository.save(msg);
     }
 
     // --- 轉換方法 ---
