@@ -1,0 +1,283 @@
+============================================================
+API FLOW DOCUMENTATION (all 12 endpoints)
+============================================================
+
+
+------------------------------------------------------------
+#1  GET /
+------------------------------------------------------------
+Purpose: Health check
+
+Flow:
+  Request → Return "OK"
+
+Note: Duplicate with /ping. Suggest removing.
+
+
+------------------------------------------------------------
+#2  GET /ping
+------------------------------------------------------------
+Purpose: Health check for K8s / Load Balancer
+
+Flow:
+  Request → Return "OK"
+
+
+------------------------------------------------------------
+#3  GET /test
+------------------------------------------------------------
+Purpose: Redirect to a static WebSocket test page
+
+Flow:
+  Request → Redirect to /static/WebSocket.html
+
+Note: Dev-only. Suggest removing.
+
+
+------------------------------------------------------------
+#4  GET /option
+------------------------------------------------------------
+Purpose: Get available profiles & LLM model list
+
+Flow:
+  Request → Same as /qa/option (duplicate)
+
+Note: Duplicate with #5. Suggest removing.
+
+
+------------------------------------------------------------
+#5  GET /qa/option
+------------------------------------------------------------
+Purpose: Return available database profiles and LLM model IDs for frontend dropdowns.
+
+Request:
+  GET /qa/option?id=user123   (id is optional)
+
+Flow:
+  1. Get all profiles from DB
+  2. Get all model IDs (Bedrock built-in + SageMaker custom)
+  3. If user-profile mapping is enabled AND id provided:
+       → Look up user's allowed profiles
+       → If found → return user's profiles
+       → If not found → return ["No_Profile"]
+  4. Else → return all profiles
+  5. Return { data_profiles, bedrock_model_ids }
+
+
+------------------------------------------------------------
+#6  GET /qa/get_custom_question
+------------------------------------------------------------
+Purpose: Get example questions configured in a profile (for UI hints).
+
+Request:
+  GET /qa/get_custom_question?data_profile=demo-profile
+
+Flow:
+  1. Get profile by name
+  2. Read the "comments" field
+  3. If comments contains "Examples:":
+       → Split text after "Examples:" by ";"
+       → Return question list
+  4. Else → return empty list
+
+Note: Current impl parses free-text from comments field.
+      Suggest redesigning with a proper field or table.
+
+
+------------------------------------------------------------
+#7  POST /qa/get_history_by_user_profile
+------------------------------------------------------------
+Purpose: Get all chat history for a user+profile, grouped by session.
+
+Request:
+  { "user_id": "admin", "profile_name": "demo-profile" }
+
+Flow:
+  1. Query DB for all logs matching (user_id + profile_name)
+  2. Group results by session_id
+  3. For each session:
+       → Pair up human message (query) and AI message (log_info JSON)
+  4. Return [{ session_id, messages[] }, ...]
+
+Note: Overlaps with #8 (get_sessions) + #9 (get_history_by_session).
+      Frontend only needs session list first, then loads messages on click.
+      Suggest merging into #8 + #9.
+
+
+------------------------------------------------------------
+#8  POST /qa/get_sessions
+------------------------------------------------------------
+Purpose: Get session list for sidebar navigation.
+
+Request:
+  { "user_id": "admin", "profile_name": "demo-profile" }
+
+Flow:
+  1. Query DB for distinct sessions matching (user_id + profile_name)
+  2. Return session list
+
+
+------------------------------------------------------------
+#9  POST /qa/get_history_by_session
+------------------------------------------------------------
+Purpose: Load all messages when user clicks on a session.
+
+Request:
+  { "session_id": "abc-123", "user_id": "admin", "profile_name": "demo-profile" }
+
+Flow:
+  1. Query DB for all logs in this session (up to 1000)
+  2. Format into human/AI message pairs
+  3. Extract title from first query
+  4. Return { session_id, messages[], title }
+
+
+------------------------------------------------------------
+#10  POST /qa/delete_history_by_session
+------------------------------------------------------------
+Purpose: Delete all messages in a session.
+
+Request:
+  { "session_id": "abc-123", "user_id": "admin", "profile_name": "demo-profile" }
+
+Flow:
+  1. Delete all logs matching (user_id + profile_name + session_id)
+  2. Return success/fail
+
+
+------------------------------------------------------------
+#11  POST /qa/user_feedback
+------------------------------------------------------------
+Purpose: User upvotes or downvotes a query result.
+         Upvote → adds Q&A pair to RAG vector store (improves future queries).
+         Downvote → logs error feedback for review.
+
+Request:
+  {
+    "feedback_type": "upvote",
+    "data_profiles": "demo-profile",
+    "query": "Show me total sales",
+    "query_intent": "normal_search",
+    "query_answer": "SELECT SUM(amount) FROM orders",
+    "error_description": "",         // downvote only
+    "error_categories": "",          // downvote only
+    "correct_sql_reference": ""      // downvote only
+  }
+
+Flow:
+  1. If feedback_type == "upvote":
+       → VectorStore.add_sample(profile, query, sql)
+       → This Q&A pair will be retrieved in future RAG queries
+       → Return success
+
+  2. If feedback_type == "downvote":
+       → Build error_info JSON
+       → Save to feedback DB (for human review)
+       → Return success
+
+
+------------------------------------------------------------
+#12  WebSocket /qa/ws  ** CORE FEATURE **
+------------------------------------------------------------
+Purpose: Main NLQ query. User asks natural language question
+         → system generates SQL → executes → returns results.
+
+Request (JSON via WebSocket):
+  {
+    "query": "Show me total sales this month",
+    "profile_name": "demo-profile",
+    "session_id": "abc-123",
+    "user_id": "admin",
+    "bedrock_model_id": "anthropic.claude-3-sonnet-20240229-v1:0",
+    "use_rag_flag": true,
+    "intent_ner_recognition_flag": true,
+    "agent_cot_flag": true,
+    "context_window": 5,
+    ...
+  }
+
+Response (multiple WebSocket messages):
+  - STATE messages (progress):  { content_type: "state", content: { text: "step name", status: "start|end" } }
+  - END message (final result): { content_type: "end", content: Answer object }
+  - EXCEPTION (on error):       { content_type: "exception", content: "error message" }
+
+Flow:
+  1. Receive JSON, parse as Question
+  2. Authenticate (if SSO enabled, will be removed)
+  3. Load database profile + connection info
+  4. Load user query history (for context window)
+  5. Build ProcessingContext
+  6. Create QueryStateMachine
+  7. Run state machine loop:
+
+     INITIAL
+       → If context_window > 0: Query Rewrite (LLM rewrites with history)
+         → If LLM wants to ask follow-up → return "ask_in_reply" → COMPLETE
+       → INTENT_RECOGNITION (LLM classifies query into 4 types)
+
+     Path A: normal_search
+       → ENTITY_RETRIEVAL (vector search for NER entities)
+         → If same-name entities found → ASK_ENTITY_SELECT → COMPLETE (ask user to pick)
+       → QA_RETRIEVAL (vector search for similar Q&A examples)
+       → SQL_GENERATION (LLM generates SQL using DDL + examples + hints)
+       → EXECUTE_QUERY (run SQL on database)
+         → If fails + auto_correction on → regenerate SQL with error info → retry
+       → ANALYZE_DATA (optional, LLM generates insights)
+       → COMPLETE
+
+     Path B: knowledge_search
+       → KNOWLEDGE_SEARCH (LLM answers directly, no SQL)
+       → COMPLETE
+
+     Path C: reject_search
+       → REJECT_INTENT (refuse to answer)
+       → COMPLETE
+
+     Path D: agent_search
+       → AGENT_TASK (LLM breaks query into sub-tasks)
+       → AGENT_SEARCH (generate SQL for each sub-task)
+       → AGENT_DATA_SUMMARY (execute each SQL, LLM summarizes all results)
+       → COMPLETE
+
+  8. After COMPLETE:
+     → Generate suggested follow-up questions (optional)
+     → Data visualization (LLM picks chart type: table/bar/line/pie)
+     → Save query log to DB
+     → Send END message with full Answer object
+
+
+Answer object structure:
+  {
+    "query":                  "original question",
+    "query_rewrite":          "LLM rewritten question",
+    "query_intent":           "normal_search | agent_search | knowledge_search | reject_search | entity_select | ask_in_reply",
+    "sql_search_result": {
+      "sql":                  "SELECT ...",
+      "sql_data":             [[headers], [row1], [row2], ...],
+      "data_show_type":       "table | bar | line | pie",
+      "sql_gen_process":      "explanation of SQL generation",
+      "data_analyse":         "LLM insights",
+      "sql_data_chart":       [{ "chart_type": "bar", "chart_data": [...] }]
+    },
+    "knowledge_search_result": { "knowledge_response": "direct LLM answer" },
+    "agent_search_result": {
+      "agent_sql_search_result": [{ "sub_task_query": "...", "sql_search_result": {...} }],
+      "agent_summary":        "LLM summary of all sub-tasks"
+    },
+    "suggested_question":     ["q1", "q2", "q3"],
+    "ask_entity_select":      { "entity_select_info": {...}, "entity_retrieval": [...] },
+    "error_log":              {}
+  }
+
+
+============================================================
+FRONTEND USAGE FLOW (how APIs work together)
+============================================================
+
+1. Page load       → GET /qa/option                → populate profile & model dropdowns
+2. Select profile  → GET /qa/get_custom_question    → show example questions
+3. Load sessions   → POST /qa/get_sessions          → show session list in sidebar
+4. Click session   → POST /qa/get_history_by_session → load chat messages
+5. Ask question    → WebSocket /qa/ws               → main NLQ query flow
+6. Like/Dislike    → POST /qa/user_feedback          → improve RAG / log errors
+7. Delete session  → POST /qa/delete_history_by_session → cleanup

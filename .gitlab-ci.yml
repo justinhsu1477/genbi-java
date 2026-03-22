@@ -1,0 +1,134 @@
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH =~ /^(feature|bugfix|fix|hotfix|chore|codex)\//
+    - when: never
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+  MAVEN_CLI_OPTS: "--batch-mode -Dspring.profiles.active=dev"
+  TOOLCHAIN_DIR: "$CI_PROJECT_DIR/.cache/toolchains"
+  JDK_HOME: "$CI_PROJECT_DIR/.cache/toolchains/jdk-21"
+  MAVEN_HOME: "$CI_PROJECT_DIR/.cache/toolchains/apache-maven-3.9.12"
+  JDK_DOWNLOAD_URL: "https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jdk/hotspot/normal/eclipse"
+  MAVEN_DOWNLOAD_URL: "https://archive.apache.org/dist/maven/maven-3/3.9.12/binaries/apache-maven-3.9.12-bin.tar.gz"
+
+default:
+  image: maven:3.9.9-eclipse-temurin-21
+  interruptible: true
+  cache:
+    key:
+      files:
+        - pom.xml
+        - .gitlab-ci.yml
+      prefix: maven-toolchain-v1
+    paths:
+      - .m2/repository/
+      - .cache/toolchains/
+    policy: pull-push
+  before_script:
+    - 'echo "Pipeline source: $CI_PIPELINE_SOURCE"'
+    - 'echo "Branch: $CI_COMMIT_REF_NAME"'
+    - |
+      set -eu
+      if command -v mvn >/dev/null 2>&1; then
+        echo "Runner Maven:"
+        mvn -version || true
+      else
+        echo "Runner Maven: not found"
+      fi
+      echo "Runner Java:"
+      java -version || true
+    - |
+      set -eu
+      download_file() {
+        url="$1"
+        output="$2"
+        if command -v curl >/dev/null 2>&1; then
+          curl -fsSL "$url" -o "$output"
+        elif command -v wget >/dev/null 2>&1; then
+          wget -qO "$output" "$url"
+        else
+          echo "curl or wget is required to download the project toolchain."
+          exit 1
+        fi
+      }
+
+      mkdir -p "$TOOLCHAIN_DIR"
+
+      if [ ! -x "$JDK_HOME/bin/java" ]; then
+        echo "Downloading JDK 21 into $JDK_HOME"
+        jdk_archive="$TOOLCHAIN_DIR/jdk21.tar.gz"
+        jdk_tmp="$TOOLCHAIN_DIR/jdk-21.tmp"
+        download_file "$JDK_DOWNLOAD_URL" "$jdk_archive"
+        rm -rf "$jdk_tmp" "$JDK_HOME"
+        mkdir -p "$jdk_tmp"
+        tar -xzf "$jdk_archive" -C "$jdk_tmp" --strip-components=1
+        mv "$jdk_tmp" "$JDK_HOME"
+      else
+        echo "Using cached JDK 21 from $JDK_HOME"
+      fi
+
+      if [ ! -x "$MAVEN_HOME/bin/mvn" ]; then
+        echo "Downloading Maven 3.9.12 into $MAVEN_HOME"
+        maven_archive="$TOOLCHAIN_DIR/apache-maven-3.9.12-bin.tar.gz"
+        maven_tmp="$TOOLCHAIN_DIR/apache-maven-3.9.12.tmp"
+        download_file "$MAVEN_DOWNLOAD_URL" "$maven_archive"
+        rm -rf "$maven_tmp" "$MAVEN_HOME"
+        mkdir -p "$maven_tmp"
+        tar -xzf "$maven_archive" -C "$maven_tmp" --strip-components=1
+        mv "$maven_tmp" "$MAVEN_HOME"
+      else
+        echo "Using cached Maven 3.9.12 from $MAVEN_HOME"
+      fi
+
+      export JAVA_HOME="$JDK_HOME"
+      export PATH="$JDK_HOME/bin:$MAVEN_HOME/bin:$PATH"
+      echo "Project toolchain Java:"
+      java -version
+      echo "Project toolchain Maven:"
+      mvn -version
+
+stages:
+  - test
+  - verify
+
+.backend_changes: &backend_changes
+  changes:
+    - pom.xml
+    - src/**/*
+    - .gitlab-ci.yml
+    - Dockerfile
+
+branch-quick-check:
+  stage: test
+  script:
+    - mvn $MAVEN_CLI_OPTS test
+  rules:
+    - if: $CI_PIPELINE_SOURCE != "merge_request_event" && $CI_COMMIT_BRANCH =~ /^(feature|bugfix|fix|hotfix|chore|codex)\//
+      <<: *backend_changes
+    - when: never
+
+mr-verify:
+  stage: verify
+  script:
+    - mvn $MAVEN_CLI_OPTS clean verify
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      <<: *backend_changes
+    - when: never
+
+package-preview:
+  stage: verify
+  script:
+    - mvn $MAVEN_CLI_OPTS clean package -DskipTests
+  artifacts:
+    paths:
+      - target/*.jar
+    expire_in: 3 days
+  when: manual
+  allow_failure: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE != "merge_request_event" && $CI_COMMIT_BRANCH =~ /^(feature|bugfix|fix|hotfix|chore|codex)\//
+      <<: *backend_changes
+    - when: never

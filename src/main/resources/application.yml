@@ -1,0 +1,26 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gen-bi
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+# --- 共用設定 Common config ---
+nlq:
+  bedrock:
+    model-id: ${BEDROCK_MODEL_ID:anthropic.claude-3-5-sonnet-20241022-v2:0}
+    region: ${BEDROCK_REGION:us-west-2}
+    max-tokens: ${BEDROCK_MAX_TOKENS:4096}
+    temperature: 0.01
+  opensearch:
+    host: ${AOS_HOST:localhost}
+    port: ${AOS_PORT:9200}
+    username: ${AOS_USERNAME:admin}
+    password: ${AOS_PASSWORD:admin}
+    scheme: ${AOS_SCHEME:https}
+    sql-index: uba
+    ner-index: uba_ner
+    agent-index: uba_agent
+    log-index: genbi_query_logging
