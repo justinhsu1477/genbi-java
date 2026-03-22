@@ -7,28 +7,38 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Spy;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.ai.chat.client.ChatClient;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 
 /**
- * BedrockLlmService 單元測試 — Mock invokeModel，驗證 JSON 解析和 Prompt 整合
+ * BedrockLlmService 單元測試 — Mock callLlm，驗證 JSON 解析和 Prompt 整合
  */
 @ExtendWith(MockitoExtension.class)
 class BedrockLlmServiceTest {
 
-    @Spy
-    BedrockLlmService service = new BedrockLlmService(
-            new BedrockProperties("test-model", "us-west-2", 4096, 0.01),
-            new ObjectMapper(),
-            new DefaultPromptService()  // Phase 5: 注入 PromptService
-    );
+    @Mock
+    ChatClient chatClient;
+
+    BedrockLlmService service;
+
+    @BeforeEach
+    void setUp() {
+        service = spy(new BedrockLlmService(
+                chatClient,
+                new BedrockProperties("test-model", "us-west-2", 4096, 0.01),
+                new ObjectMapper(),
+                new DefaultPromptService()
+        ));
+    }
 
     @Nested
     @DisplayName("getQueryIntent 意圖識別")
@@ -39,7 +49,7 @@ class BedrockLlmServiceTest {
         void shouldParseIntentResponse() {
             doReturn("""
                     {"intent": "normal_search", "slot": [{"entity": "orders", "value": "total"}]}
-                    """).when(service).invokeModel(anyString(), anyString(), anyString(), anyInt());
+                    """).when(service).callLlm(anyString(), anyString());
 
             Map<String, Object> result = service.getQueryIntent("test-model", "show total orders", Map.of());
 
@@ -54,7 +64,7 @@ class BedrockLlmServiceTest {
                     ```json
                     {"intent": "knowledge_search", "slot": []}
                     ```
-                    """).when(service).invokeModel(anyString(), anyString(), anyString(), anyInt());
+                    """).when(service).callLlm(anyString(), anyString());
 
             Map<String, Object> result = service.getQueryIntent("test-model", "what is revenue", Map.of());
 
@@ -71,7 +81,7 @@ class BedrockLlmServiceTest {
         void shouldParseRewriteResponse() {
             doReturn("""
                     {"intent": "normal", "query": "Show total sales for March 2026"}
-                    """).when(service).invokeModel(anyString(), anyString(), anyString(), anyInt());
+                    """).when(service).callLlm(anyString(), anyString());
 
             Map<String, Object> result = service.getQueryRewrite("test-model", "show last month sales",
                     Map.of(), List.of("show Q1 revenue"));
@@ -85,7 +95,7 @@ class BedrockLlmServiceTest {
         void shouldHandleAskInReply() {
             doReturn("""
                     {"intent": "ask_in_reply", "query": "Which month do you mean?"}
-                    """).when(service).invokeModel(anyString(), anyString(), anyString(), anyInt());
+                    """).when(service).callLlm(anyString(), anyString());
 
             Map<String, Object> result = service.getQueryRewrite("test-model", "show sales",
                     Map.of(), List.of());
@@ -102,7 +112,7 @@ class BedrockLlmServiceTest {
         @DisplayName("回傳含 SQL 標籤的文字")
         void shouldReturnRawResponse() {
             String expected = "Based on the question:\n<sql>SELECT COUNT(*) FROM orders</sql>";
-            doReturn(expected).when(service).invokeModel(anyString(), anyString(), anyString(), anyInt());
+            doReturn(expected).when(service).callLlm(anyString(), anyString());
 
             String result = service.textToSql("CREATE TABLE orders...", "amount=price*qty",
                     Map.of(), "how many orders", "test-model", List.of(), List.of(), "mysql");
@@ -114,7 +124,7 @@ class BedrockLlmServiceTest {
         @Test
         @DisplayName("textToSql 使用 prompt_map 覆蓋的 system prompt")
         void shouldUseOverriddenPrompt() {
-            doReturn("response").when(service).invokeModel(anyString(), anyString(), anyString(), anyInt());
+            doReturn("response").when(service).callLlm(anyString(), anyString());
 
             Map<String, Object> customPromptMap = Map.of(
                     "text2sql", Map.of(
@@ -123,7 +133,6 @@ class BedrockLlmServiceTest {
                     )
             );
 
-            // 不拋異常 = 覆蓋成功
             service.textToSql("DDL", "hints", customPromptMap,
                     "query", "test-model", List.of(), List.of(), "mysql");
         }
@@ -138,7 +147,7 @@ class BedrockLlmServiceTest {
         void shouldParseJsonArray() {
             doReturn("""
                     ["What is Q1 revenue?", "Top 5 products?", "Monthly trend?"]
-                    """).when(service).invokeModel(anyString(), anyString(), anyString(), anyInt());
+                    """).when(service).callLlm(anyString(), anyString());
 
             List<String> result = service.generateSuggestedQuestions(Map.of(), "show sales", "test-model");
 
@@ -156,7 +165,7 @@ class BedrockLlmServiceTest {
         void shouldParseChartType() {
             doReturn("""
                     {"showType": "chart", "chartType": "bar", "chartData": [{"x": "Jan", "y": 100}]}
-                    """).when(service).invokeModel(anyString(), anyString(), anyString(), anyInt());
+                    """).when(service).callLlm(anyString(), anyString());
 
             Map<String, Object> result = service.dataVisualization("test-model", "monthly sales",
                     List.of(Map.of("month", "Jan", "total", 100)), Map.of());
@@ -173,7 +182,7 @@ class BedrockLlmServiceTest {
         @Test
         @DisplayName("agent 類型使用 AGENT_ANALYSE prompt")
         void agentType_usesAgentAnalysePrompt() {
-            doReturn("Analysis result").when(service).invokeModel(anyString(), anyString(), anyString(), anyInt());
+            doReturn("Analysis result").when(service).callLlm(anyString(), anyString());
 
             String result = service.dataAnalyse("test-model", Map.of(), "why dropped", "{}", "agent");
             assertEquals("Analysis result", result);
@@ -182,7 +191,7 @@ class BedrockLlmServiceTest {
         @Test
         @DisplayName("非 agent 類型使用 DATA_SUMMARY prompt")
         void otherType_usesDataSummaryPrompt() {
-            doReturn("Summary result").when(service).invokeModel(anyString(), anyString(), anyString(), anyInt());
+            doReturn("Summary result").when(service).callLlm(anyString(), anyString());
 
             String result = service.dataAnalyse("test-model", Map.of(), "total revenue", "{}", "summary");
             assertEquals("Summary result", result);
@@ -190,15 +199,16 @@ class BedrockLlmServiceTest {
     }
 
     @Nested
-    @DisplayName("resolveModel 模型解析")
+    @DisplayName("resolveModel / knowledgeSearch")
     class ModelResolutionTests {
 
         @Test
-        @DisplayName("空 modelId 使用預設值")
-        void shouldUseDefaultModel() {
-            doReturn("{}").when(service).invokeModel(eq("test-model"), anyString(), anyString(), anyInt());
+        @DisplayName("knowledgeSearch 正常呼叫")
+        void shouldCallLlm() {
+            doReturn("Knowledge answer").when(service).callLlm(anyString(), anyString());
 
-            service.knowledgeSearch("test", "", Map.of());
+            String result = service.knowledgeSearch("test query", "test-model", Map.of());
+            assertEquals("Knowledge answer", result);
         }
     }
 }

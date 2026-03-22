@@ -6,6 +6,16 @@ spring:
     name: gen-bi
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  ai:
+    bedrock:
+      aws:
+        region: ${BEDROCK_REGION:us-west-2}
+      converse:
+        chat:
+          options:
+            model: ${BEDROCK_MODEL_ID:anthropic.claude-3-5-sonnet-20241022-v2:0}
+            temperature: 0.01
+            max-tokens: ${BEDROCK_MAX_TOKENS:4096}
 
 # --- 共用設定 Common config ---
 nlq:
