@@ -50,7 +50,7 @@ class DbProfileServiceTest {
         return new ProfileRequest(name, "conn", "mysql",
                 "jdbc:mysql://localhost/db", "user", "pass",
                 "CREATE TABLE t1 (id INT)", "hint", "comment",
-                false, null);
+                null, false, null);
     }
 
     @Nested
@@ -137,7 +137,7 @@ class DbProfileServiceTest {
 
             ProfileRequest rlsReq = new ProfileRequest("rls-test", "conn", "mysql",
                     "jdbc:mysql://localhost/db", null, null, null, null, null,
-                    true, "bad yaml");
+                    null, true, "bad yaml");
 
             assertThrows(BusinessException.class, () -> profileService.create(rlsReq));
         }

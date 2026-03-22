@@ -99,6 +99,19 @@ Python `vector_store.py` + `opensearch.py` → Java `service/impl/`
 | `POST /api/v1/samples/agents` | 新增 Agent COT 範例 |
 | `DELETE /api/v1/samples/agents/{docId}` | 刪除 Agent COT 範例 |
 
+### Prompt 模板系統 (Phase 5)
+| Python | Java | 說明 |
+|--------|------|------|
+| `generate_prompt.py` (2471 行) | `PromptType` enum (9 values) | 9 種 prompt 類型 + 預設模板 |
+| `prompt.py` dialect prompts (8 種) | `SqlDialect` enum (8 values) | SQL 方言專屬語法指引 |
+| `check_prompt.py` required_syntax_map | `PromptType.getRequiredSystemVars/UserVars()` | 模板變數驗證 |
+| `generate_llm_prompt()` | `PromptService.buildSystemPrompt/UserPrompt()` | 提取模板 + 變數替換 |
+| `prompt_map_dict` (DynamoDB) | `DbProfile.promptMap` (JSON TEXT) | 儲存自訂 prompt 覆蓋 |
+| `support_model_ids_map` | `DefaultPromptService.resolveModelKey()` | Bedrock model ID → 短名稱 |
+| `example_sql_prompt` 格式化 | `BedrockLlmService.formatSqlExamples()` | Q:/A: 格式 |
+| `example_ner_prompt` 格式化 | `BedrockLlmService.formatNerExamples()` | ner:/ner info: 格式 |
+| `AGENT_COT_EXAMPLE` | `BedrockLlmService.DEFAULT_AGENT_COT_EXAMPLE` | 預設 COT 範例 |
+
 ## 轉換注意事項
 
 1. **Python dict → Java Map**: Python 大量用 dict，Java 盡量用具體型別 (record/class)
@@ -116,8 +129,8 @@ Python `vector_store.py` + `opensearch.py` → Java `service/impl/`
 | OpenSearch RAG 向量搜尋 | `vector_store.py` + `opensearch.py` | 高 | ✅ Phase 4 完成 |
 | Bedrock Titan Embedding | `utils/llm.py` embedding | 高 | ✅ Phase 4 完成 |
 | 範例管理 CRUD | Streamlit Index/Entity/Agent 頁面 | 高 | ✅ Phase 4 完成 (REST API) |
-| Prompt 模板管理 | `utils/prompts/` | 高 | **Phase 5 待做** |
-| 多資料庫方言 | `utils/prompt.py` (6 種 dialect) | 中 | **Phase 5 待做** |
+| Prompt 模板管理 | `utils/prompts/` | 高 | ✅ Phase 5 完成 (PromptType enum + PromptService) |
+| 多資料庫方言 | `utils/prompt.py` (8 種 dialect) | 中 | ✅ Phase 5 完成 (SqlDialect enum) |
 | Row Level Security | `datasource/base.py` | 中 | 介面已預留，待 auth 整合 |
 | 多 DB 動態連線 | `ConnectionManagement` + factory | 中 | **Phase 6 待做** |
 | 多租戶 User Profile | `user_profile.py` | 中 | **Phase 7 待做** |

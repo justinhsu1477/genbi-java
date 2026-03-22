@@ -50,6 +50,10 @@ public class DbProfile {
     @Column(name = "comments", columnDefinition = "TEXT")
     private String comments;
 
+    /** Prompt 模板 JSON — 對應 Python prompt_map (存 JSON 字串) */
+    @Column(name = "prompt_map", columnDefinition = "MEDIUMTEXT")
+    private String promptMap;
+
     @Column(name = "rls_enabled")
     @Builder.Default
     private Boolean rlsEnabled = false;
@@ -86,6 +90,7 @@ public class DbProfile {
         this.tablesInfo = request.tablesInfo();
         this.hints = request.hints();
         this.comments = request.comments();
+        this.promptMap = request.promptMap();
         this.rlsEnabled = Boolean.TRUE.equals(request.rlsEnabled());
         this.rlsConfig = request.rlsConfig();
     }

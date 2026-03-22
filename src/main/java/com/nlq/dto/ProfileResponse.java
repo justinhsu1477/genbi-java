@@ -14,6 +14,7 @@ public record ProfileResponse(
         String tablesInfo,
         String hints,
         String comments,
+        String promptMap,
         Boolean rlsEnabled,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

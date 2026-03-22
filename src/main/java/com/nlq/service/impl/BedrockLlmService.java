@@ -4,7 +4,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nlq.config.BedrockProperties;
+import com.nlq.enums.PromptType;
+import com.nlq.enums.SqlDialect;
 import com.nlq.service.LlmService;
+import com.nlq.service.PromptService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -15,11 +18,15 @@ import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
 import software.amazon.awssdk.services.bedrockruntime.model.InvokeModelRequest;
 import software.amazon.awssdk.services.bedrockruntime.model.InvokeModelResponse;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * AWS Bedrock LLM 服務 — 真實呼叫 Claude (qas/prod 環境)
+ *
+ * Phase 5 重構: 使用 PromptService 統一管理 prompt 模板，
+ * 取代原本硬編碼的 fallback prompt。
  */
 @Slf4j
 @Service
@@ -29,8 +36,32 @@ public class BedrockLlmService implements LlmService {
 
     private final BedrockProperties bedrockProperties;
     private final ObjectMapper objectMapper;
+    private final PromptService promptService;
 
     private volatile BedrockRuntimeClient client;
+
+    // --- Agent COT 預設範例 (Python: AGENT_COT_EXAMPLE) ---
+    private static final String DEFAULT_AGENT_COT_EXAMPLE = """
+            question: Why did the order sales volume of commodities decline in June?
+            tables:\s
+            interactions, The data on users' interactions with products
+            items, The product information table
+            users, The user information table
+
+            The analysis approach:
+            1. Analyze the total sales volume and sales revenue of the top 10 products.
+            2. Analyze the purchase situation of the top 10 products by different genders.
+            3. Analyze the most popular product category with the highest purchase rate.
+
+            answer:
+            ```json
+            {
+                "task_1":"Analyze the total sales volume and sales revenue of the top 10 products.",
+                "task_2":"Analyze the purchase situation of the top 10 products by different genders",
+                "task_3":"Analyze the most popular product category with the highest purchase rate."
+            }
+            ```
+            """;
 
     // --- 公開介面實作 ---
 
@@ -38,12 +69,11 @@ public class BedrockLlmService implements LlmService {
     public Map<String, Object> getQueryIntent(String modelId, String query, Map<String, Object> promptMap) {
         log.info("[Bedrock] getQueryIntent: model={}, query={}", resolveModel(modelId), truncate(query));
 
-        String systemPrompt = extractPrompt(promptMap, "intent_prompt",
-                "You are an intent classifier. Classify the user query into one of: normal_search, knowledge_search, agent_search, reject_search. Also extract entity slots.");
-        String userMessage = "Classify the intent and extract entities from: " + query
-                + "\nReturn JSON: {\"intent\": \"...\", \"slot\": [{\"entity\": \"...\", \"value\": \"...\"}]}";
+        String systemPrompt = promptService.buildSystemPrompt(promptMap, PromptType.INTENT, modelId, Map.of());
+        String userPrompt = promptService.buildUserPrompt(promptMap, PromptType.INTENT, modelId,
+                Map.of("question", query));
 
-        String response = invokeModel(resolveModel(modelId), systemPrompt, userMessage, bedrockProperties.maxTokens());
+        String response = invokeModel(resolveModel(modelId), systemPrompt, userPrompt, bedrockProperties.maxTokens());
         return parseJson(response, new TypeReference<>() {});
     }
 
@@ -52,12 +82,12 @@ public class BedrockLlmService implements LlmService {
                                                  Map<String, Object> promptMap, List<String> history) {
         log.info("[Bedrock] getQueryRewrite: model={}, query={}, historySize={}", resolveModel(modelId), truncate(query), history.size());
 
-        String systemPrompt = extractPrompt(promptMap, "query_rewrite_prompt",
-                "You are a query rewriter. Rewrite the user query based on conversation history for clarity.");
-        String userMessage = "History:\n" + String.join("\n", history) + "\n\nCurrent query: " + query
-                + "\nReturn JSON: {\"intent\": \"normal\"|\"ask_in_reply\", \"query\": \"rewritten query\"}";
+        String chatHistory = String.join("\n", history);
+        String systemPrompt = promptService.buildSystemPrompt(promptMap, PromptType.QUERY_REWRITE, modelId, Map.of());
+        String userPrompt = promptService.buildUserPrompt(promptMap, PromptType.QUERY_REWRITE, modelId,
+                Map.of("chat_history", chatHistory, "question", query));
 
-        String response = invokeModel(resolveModel(modelId), systemPrompt, userMessage, bedrockProperties.maxTokens());
+        String response = invokeModel(resolveModel(modelId), systemPrompt, userPrompt, bedrockProperties.maxTokens());
         return parseJson(response, new TypeReference<>() {});
     }
 
@@ -67,24 +97,31 @@ public class BedrockLlmService implements LlmService {
                             List<Object> nerExamples, String dialect) {
         log.info("[Bedrock] textToSql: model={}, query={}, dialect={}", resolveModel(modelId), truncate(query), dialect);
 
-        String systemPrompt = extractPrompt(promptMap, "text_to_sql_prompt",
-                "You are a SQL expert. Generate SQL based on the given table schema, hints, and examples. "
-                + "Return the SQL wrapped in <sql></sql> tags. Dialect: " + dialect);
+        SqlDialect sqlDialect = SqlDialect.fromValue(dialect);
 
-        StringBuilder userMsg = new StringBuilder();
-        userMsg.append("## Table Schema\n").append(tablesInfo).append("\n\n");
-        if (hints != null && !hints.isBlank()) {
-            userMsg.append("## Hints\n").append(hints).append("\n\n");
-        }
-        if (!sqlExamples.isEmpty()) {
-            userMsg.append("## SQL Examples\n").append(sqlExamples).append("\n\n");
-        }
-        if (!nerExamples.isEmpty()) {
-            userMsg.append("## Entity Examples\n").append(nerExamples).append("\n\n");
-        }
-        userMsg.append("## Question\n").append(query);
+        // 組裝 SQL 範例 (Python: example_sql_prompt)
+        String exampleSqlPrompt = formatSqlExamples(sqlExamples);
+        String exampleNerPrompt = formatNerExamples(nerExamples);
 
-        return invokeModel(resolveModel(modelId), systemPrompt, userMsg.toString(), bedrockProperties.maxTokens());
+        // 組裝 dialect 顯示名稱
+        String dialectDisplay = "redshift".equalsIgnoreCase(dialect) ? "Amazon Redshift" : dialect;
+
+        // 建構 system prompt (含 {dialect} 替換)
+        String systemPrompt = promptService.buildSystemPrompt(promptMap, PromptType.TEXT2SQL, modelId,
+                Map.of("dialect", dialectDisplay != null ? dialectDisplay : "SQL"));
+
+        // 建構 user prompt (含多個變數替換)
+        Map<String, String> userVars = new LinkedHashMap<>();
+        userVars.put("dialect_prompt", sqlDialect.getDialectPrompt());
+        userVars.put("sql_schema", tablesInfo != null ? tablesInfo : "");
+        userVars.put("examples", exampleSqlPrompt);
+        userVars.put("ner_info", exampleNerPrompt);
+        userVars.put("sql_guidance", hints != null ? hints : "");
+        userVars.put("question", query);
+
+        String userPrompt = promptService.buildUserPrompt(promptMap, PromptType.TEXT2SQL, modelId, userVars);
+
+        return invokeModel(resolveModel(modelId), systemPrompt, userPrompt, bedrockProperties.maxTokens());
     }
 
     @Override
@@ -94,36 +131,37 @@ public class BedrockLlmService implements LlmService {
                                            String originalSql, String errorInfo) {
         log.info("[Bedrock] textToSqlWithCorrection: model={}, query={}, error={}", resolveModel(modelId), truncate(query), truncate(errorInfo));
 
-        String systemPrompt = extractPrompt(promptMap, "text_to_sql_prompt",
-                "You are a SQL expert. Generate SQL based on the given table schema, hints, and examples. "
-                + "Return the SQL wrapped in <sql></sql> tags. Dialect: " + dialect);
+        SqlDialect sqlDialect = SqlDialect.fromValue(dialect);
+        String dialectDisplay = "redshift".equalsIgnoreCase(dialect) ? "Amazon Redshift" : dialect;
 
-        StringBuilder userMsg = new StringBuilder();
-        userMsg.append("## Table Schema\n").append(tablesInfo).append("\n\n");
-        if (hints != null && !hints.isBlank()) {
-            userMsg.append("## Hints\n").append(hints).append("\n\n");
-        }
-        if (!sqlExamples.isEmpty()) {
-            userMsg.append("## SQL Examples\n").append(sqlExamples).append("\n\n");
-        }
-        if (!nerExamples.isEmpty()) {
-            userMsg.append("## Entity Examples\n").append(nerExamples).append("\n\n");
-        }
-        userMsg.append("## Question\n").append(query).append("\n\n");
-        userMsg.append("NOTE: when I try to write a SQL <sql>").append(originalSql)
-                .append("</sql>, I got an error <error>").append(errorInfo)
-                .append("</error>. Please consider and avoid this problem.");
+        String systemPrompt = promptService.buildSystemPrompt(promptMap, PromptType.TEXT2SQL, modelId,
+                Map.of("dialect", dialectDisplay != null ? dialectDisplay : "SQL"));
 
-        return invokeModel(resolveModel(modelId), systemPrompt, userMsg.toString(), bedrockProperties.maxTokens());
+        Map<String, String> userVars = new LinkedHashMap<>();
+        userVars.put("dialect_prompt", sqlDialect.getDialectPrompt());
+        userVars.put("sql_schema", tablesInfo != null ? tablesInfo : "");
+        userVars.put("examples", formatSqlExamples(sqlExamples));
+        userVars.put("ner_info", formatNerExamples(nerExamples));
+        userVars.put("sql_guidance", hints != null ? hints : "");
+        userVars.put("question", query
+                + "\n\nNOTE: when I try to write a SQL <sql>" + originalSql
+                + "</sql>, I got an error <error>" + errorInfo
+                + "</error>. Please consider and avoid this problem.");
+
+        String userPrompt = promptService.buildUserPrompt(promptMap, PromptType.TEXT2SQL, modelId, userVars);
+
+        return invokeModel(resolveModel(modelId), systemPrompt, userPrompt, bedrockProperties.maxTokens());
     }
 
     @Override
     public String knowledgeSearch(String query, String modelId, Map<String, Object> promptMap) {
         log.info("[Bedrock] knowledgeSearch: model={}, query={}", resolveModel(modelId), truncate(query));
 
-        String systemPrompt = extractPrompt(promptMap, "knowledge_prompt",
-                "You are a helpful assistant. Answer the user's question directly based on your knowledge.");
-        return invokeModel(resolveModel(modelId), systemPrompt, query, bedrockProperties.maxTokens());
+        String systemPrompt = promptService.buildSystemPrompt(promptMap, PromptType.KNOWLEDGE, modelId, Map.of());
+        String userPrompt = promptService.buildUserPrompt(promptMap, PromptType.KNOWLEDGE, modelId,
+                Map.of("question", query));
+
+        return invokeModel(resolveModel(modelId), systemPrompt, userPrompt, bedrockProperties.maxTokens());
     }
 
     @Override
@@ -131,11 +169,14 @@ public class BedrockLlmService implements LlmService {
                               String query, String dataJson, String type) {
         log.info("[Bedrock] dataAnalyse: model={}, query={}, type={}", resolveModel(modelId), truncate(query), type);
 
-        String systemPrompt = extractPrompt(promptMap, "data_analyse_prompt",
-                "You are a data analyst. Analyze the query results and provide insights.");
-        String userMessage = "Question: " + query + "\n\nData:\n" + dataJson + "\n\nProvide analysis and insights.";
+        // type 決定使用 agent_analyse 還是 data_summary
+        PromptType promptType = "agent".equals(type) ? PromptType.AGENT_ANALYSE : PromptType.DATA_SUMMARY;
 
-        return invokeModel(resolveModel(modelId), systemPrompt, userMessage, bedrockProperties.maxTokens());
+        String systemPrompt = promptService.buildSystemPrompt(promptMap, promptType, modelId, Map.of());
+        String userPrompt = promptService.buildUserPrompt(promptMap, promptType, modelId,
+                Map.of("question", query, "data", dataJson != null ? dataJson : ""));
+
+        return invokeModel(resolveModel(modelId), systemPrompt, userPrompt, bedrockProperties.maxTokens());
     }
 
     @Override
@@ -143,13 +184,17 @@ public class BedrockLlmService implements LlmService {
                                                 String query, String tablesInfo, List<Object> agentExamples) {
         log.info("[Bedrock] getAgentCotTask: model={}, query={}", resolveModel(modelId), truncate(query));
 
-        String systemPrompt = extractPrompt(promptMap, "agent_cot_prompt",
-                "You are a task planner. Break down complex queries into sub-tasks. Each sub-task should be a simpler query.");
-        String userMessage = "Tables:\n" + tablesInfo + "\n\nExamples:\n" + agentExamples
-                + "\n\nBreak this into sub-tasks: " + query
-                + "\nReturn JSON: {\"task_1\": \"...\", \"task_2\": \"...\"}";
+        // 組裝 agent COT 範例
+        String exampleData = formatAgentCotExamples(agentExamples);
 
-        String response = invokeModel(resolveModel(modelId), systemPrompt, userMessage, bedrockProperties.maxTokens());
+        String systemPrompt = promptService.buildSystemPrompt(promptMap, PromptType.AGENT, modelId,
+                Map.of("table_schema_data", tablesInfo != null ? tablesInfo : "",
+                        "sql_guidance", "",
+                        "example_data", exampleData));
+        String userPrompt = promptService.buildUserPrompt(promptMap, PromptType.AGENT, modelId,
+                Map.of("question", query));
+
+        String response = invokeModel(resolveModel(modelId), systemPrompt, userPrompt, bedrockProperties.maxTokens());
         return parseJson(response, new TypeReference<>() {});
     }
 
@@ -157,11 +202,11 @@ public class BedrockLlmService implements LlmService {
     public List<String> generateSuggestedQuestions(Map<String, Object> promptMap, String query, String modelId) {
         log.info("[Bedrock] generateSuggestedQuestions: model={}, query={}", resolveModel(modelId), truncate(query));
 
-        String systemPrompt = extractPrompt(promptMap, "suggest_question_prompt",
-                "Generate 3 follow-up questions based on the user's query. Return a JSON array of strings.");
-        String userMessage = "User asked: " + query + "\nReturn JSON array: [\"question1\", \"question2\", \"question3\"]";
+        String systemPrompt = promptService.buildSystemPrompt(promptMap, PromptType.SUGGESTION, modelId, Map.of());
+        String userPrompt = promptService.buildUserPrompt(promptMap, PromptType.SUGGESTION, modelId,
+                Map.of("question", query));
 
-        String response = invokeModel(resolveModel(modelId), systemPrompt, userMessage, bedrockProperties.maxTokens());
+        String response = invokeModel(resolveModel(modelId), systemPrompt, userPrompt, bedrockProperties.maxTokens());
         return parseJson(response, new TypeReference<>() {});
     }
 
@@ -170,13 +215,73 @@ public class BedrockLlmService implements LlmService {
                                                   List<Object> sqlData, Map<String, Object> promptMap) {
         log.info("[Bedrock] dataVisualization: model={}, query={}, dataSize={}", resolveModel(modelId), truncate(query), sqlData.size());
 
-        String systemPrompt = extractPrompt(promptMap, "data_visualization_prompt",
-                "You are a data visualization expert. Choose the best chart type for the data.");
-        String userMessage = "Question: " + query + "\nData: " + sqlData
-                + "\nReturn JSON: {\"showType\": \"table|chart\", \"chartType\": \"bar|line|pie|-1\", \"chartData\": [...]}";
+        String systemPrompt = promptService.buildSystemPrompt(promptMap, PromptType.DATA_VISUALIZATION, modelId, Map.of());
+        String userPrompt = promptService.buildUserPrompt(promptMap, PromptType.DATA_VISUALIZATION, modelId,
+                Map.of("question", query, "data", sqlData.toString()));
 
-        String response = invokeModel(resolveModel(modelId), systemPrompt, userMessage, bedrockProperties.maxTokens());
+        String response = invokeModel(resolveModel(modelId), systemPrompt, userPrompt, bedrockProperties.maxTokens());
         return parseJson(response, new TypeReference<>() {});
+    }
+
+    // --- RAG 範例格式化 (Python: generate_llm_prompt 中的格式化邏輯) ---
+
+    /**
+     * 格式化 SQL 範例 — Python: example_sql_prompt 組裝邏輯
+     */
+    @SuppressWarnings("unchecked")
+    private String formatSqlExamples(List<Object> sqlExamples) {
+        if (sqlExamples == null || sqlExamples.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (Object item : sqlExamples) {
+            if (item instanceof Map<?, ?> map) {
+                Object source = map.get("_source");
+                if (source instanceof Map<?, ?> src) {
+                    sb.append("Q: ").append(getOrEmpty(src, "text")).append("\n");
+                    sb.append("A: ```sql\n").append(getOrEmpty(src, "sql")).append("```\n");
+                }
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 格式化 NER 範例 — Python: example_ner_prompt 組裝邏輯
+     */
+    @SuppressWarnings("unchecked")
+    private String formatNerExamples(List<Object> nerExamples) {
+        if (nerExamples == null || nerExamples.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (Object item : nerExamples) {
+            if (item instanceof Map<?, ?> map) {
+                Object source = map.get("_source");
+                if (source instanceof Map<?, ?> src) {
+                    sb.append("ner: ").append(getOrEmpty(src, "entity")).append("\n");
+                    sb.append("ner info: ").append(getOrEmpty(src, "comment")).append("\n");
+                }
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 格式化 Agent COT 範例 — Python: agent_cot_example_str 組裝邏輯
+     */
+    @SuppressWarnings("unchecked")
+    private String formatAgentCotExamples(List<Object> agentExamples) {
+        if (agentExamples == null || agentExamples.isEmpty()) {
+            return DEFAULT_AGENT_COT_EXAMPLE;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (Object item : agentExamples) {
+            if (item instanceof Map<?, ?> map) {
+                Object source = map.get("_source");
+                if (source instanceof Map<?, ?> src) {
+                    sb.append("query: ").append(getOrEmpty(src, "query")).append("\n");
+                    sb.append("train of thought: ").append(getOrEmpty(src, "comment")).append("\n");
+                }
+            }
+        }
+        return sb.isEmpty() ? DEFAULT_AGENT_COT_EXAMPLE : sb.toString();
     }
 
     // --- 內部工具 ---
@@ -244,16 +349,6 @@ public class BedrockLlmService implements LlmService {
     }
 
     /**
-     * 從 promptMap 提取 prompt，找不到就用預設值
-     */
-    private String extractPrompt(Map<String, Object> promptMap, String key, String defaultPrompt) {
-        if (promptMap == null || !promptMap.containsKey(key)) {
-            return defaultPrompt;
-        }
-        return String.valueOf(promptMap.get(key));
-    }
-
-    /**
      * 從 LLM 回應中解析 JSON — 支援 markdown code block 包裹
      */
     private <T> T parseJson(String response, TypeReference<T> typeRef) {
@@ -289,6 +384,12 @@ public class BedrockLlmService implements LlmService {
             log.warn("[Bedrock] Failed to parse JSON from response: {}", truncate(response), e);
             throw new RuntimeException("Failed to parse LLM response as JSON", e);
         }
+    }
+
+    /** 從 Map<?, ?> 安全取值，找不到回空字串 */
+    private Object getOrEmpty(Map<?, ?> map, String key) {
+        Object val = map.get(key);
+        return val != null ? val : "";
     }
 
     private String truncate(String s) {

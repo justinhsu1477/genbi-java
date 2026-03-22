@@ -107,7 +107,7 @@ public class DbProfileService {
                 p.getId(), p.getProfileName(), p.getConnName(),
                 p.getDbType(), p.getDbUrl(),
                 p.getTablesInfo(), p.getHints(), p.getComments(),
-                p.getRlsEnabled(),
+                p.getPromptMap(), p.getRlsEnabled(),
                 p.getCreatedAt(), p.getUpdatedAt()
         );
     }

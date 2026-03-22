@@ -22,6 +22,7 @@ public record ProfileRequest(
         String tablesInfo,
         String hints,
         String comments,
+        String promptMap,
         Boolean rlsEnabled,
         String rlsConfig
 ) {}

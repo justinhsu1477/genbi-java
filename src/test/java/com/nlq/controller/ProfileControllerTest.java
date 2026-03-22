@@ -50,7 +50,7 @@ class ProfileControllerTest {
         LocalDateTime now = LocalDateTime.of(2026, 3, 22, 12, 0);
         return new ProfileResponse(1L, name, "conn", "mysql",
                 "jdbc:mysql://localhost/db", "CREATE TABLE t1 (id INT)", "hint", "comment",
-                false, now, now);
+                null, false, now, now);
     }
 
     @Test
@@ -89,7 +89,7 @@ class ProfileControllerTest {
     @DisplayName("POST /qa/profiles — 建立 profile")
     void shouldCreateProfile() throws Exception {
         ProfileRequest req = new ProfileRequest("new-p", "conn", "mysql",
-                "jdbc:mysql://localhost/db", null, null, "DDL", "hint", null, false, null);
+                "jdbc:mysql://localhost/db", null, null, "DDL", "hint", null, null, false, null);
         when(profileService.create(any())).thenReturn(buildResponse("new-p"));
 
         mockMvc.perform(post("/qa/profiles")
@@ -116,11 +116,11 @@ class ProfileControllerTest {
     @DisplayName("PUT /qa/profiles/{name} — 更新 profile")
     void shouldUpdateProfile() throws Exception {
         ProfileRequest req = new ProfileRequest("p1", "conn2", "oracle",
-                "jdbc:oracle:thin:@localhost:1521/xe", null, null, "DDL2", "hint2", null, false, null);
+                "jdbc:oracle:thin:@localhost:1521/xe", null, null, "DDL2", "hint2", null, null, false, null);
         when(profileService.update(eq("p1"), any())).thenReturn(
                 new ProfileResponse(1L, "p1", "conn2", "oracle",
                         "jdbc:oracle:thin:@localhost:1521/xe", "DDL2", "hint2", null,
-                        false, LocalDateTime.now(), LocalDateTime.now()));
+                        null, false, LocalDateTime.now(), LocalDateTime.now()));
 
         mockMvc.perform(put("/qa/profiles/p1")
                         .contentType(MediaType.APPLICATION_JSON)

@@ -23,7 +23,7 @@
 - [x] Profile CRUD API ✅
 - [ ] DDL 自動抓取（連上 DB 讀 schema）→ 未實作
 - [x] Hints 管理（業務邏輯提示） ✅
-- [ ] Prompt 模板管理 → Phase 5 待做
+- [x] Prompt 模板管理 (PromptType + SqlDialect + PromptService) ✅
 
 ## 安全性
 - [ ] Row Level Security (RLS) → 介面已預留
@@ -41,7 +41,7 @@
 - [x] MySQL ✅
 - [ ] Oracle → 未測試
 - [ ] PostgreSQL → Phase 6 待做
-- [ ] SQL 方言自動適配 → Phase 5 待做
+- [x] SQL 方言自動適配 (SqlDialect enum, 8 dialects) ✅
 
 ## 監控與維運
 - [ ] Health check endpoint

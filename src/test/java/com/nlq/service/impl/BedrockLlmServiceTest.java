@@ -18,8 +18,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doReturn;
 
 /**
- * BedrockLlmService 單元測試 — Mock invokeModel，驗證 JSON 解析和流程
- * Unit tests for BedrockLlmService — mocks invokeModel, tests JSON parsing and flow
+ * BedrockLlmService 單元測試 — Mock invokeModel，驗證 JSON 解析和 Prompt 整合
  */
 @ExtendWith(MockitoExtension.class)
 class BedrockLlmServiceTest {
@@ -27,7 +26,8 @@ class BedrockLlmServiceTest {
     @Spy
     BedrockLlmService service = new BedrockLlmService(
             new BedrockProperties("test-model", "us-west-2", 4096, 0.01),
-            new ObjectMapper()
+            new ObjectMapper(),
+            new DefaultPromptService()  // Phase 5: 注入 PromptService
     );
 
     @Nested
@@ -110,6 +110,23 @@ class BedrockLlmServiceTest {
             assertTrue(result.contains("<sql>"));
             assertTrue(result.contains("SELECT COUNT(*)"));
         }
+
+        @Test
+        @DisplayName("textToSql 使用 prompt_map 覆蓋的 system prompt")
+        void shouldUseOverriddenPrompt() {
+            doReturn("response").when(service).invokeModel(anyString(), anyString(), anyString(), anyInt());
+
+            Map<String, Object> customPromptMap = Map.of(
+                    "text2sql", Map.of(
+                            "system_prompt", "Custom SQL expert for {dialect}",
+                            "user_prompt", "Schema: {sql_schema}\nQ: {question}\n{dialect_prompt}{examples}{ner_info}{sql_guidance}"
+                    )
+            );
+
+            // 不拋異常 = 覆蓋成功
+            service.textToSql("DDL", "hints", customPromptMap,
+                    "query", "test-model", List.of(), List.of(), "mysql");
+        }
     }
 
     @Nested
@@ -150,6 +167,29 @@ class BedrockLlmServiceTest {
     }
 
     @Nested
+    @DisplayName("dataAnalyse 數據分析")
+    class DataAnalyseTests {
+
+        @Test
+        @DisplayName("agent 類型使用 AGENT_ANALYSE prompt")
+        void agentType_usesAgentAnalysePrompt() {
+            doReturn("Analysis result").when(service).invokeModel(anyString(), anyString(), anyString(), anyInt());
+
+            String result = service.dataAnalyse("test-model", Map.of(), "why dropped", "{}", "agent");
+            assertEquals("Analysis result", result);
+        }
+
+        @Test
+        @DisplayName("非 agent 類型使用 DATA_SUMMARY prompt")
+        void otherType_usesDataSummaryPrompt() {
+            doReturn("Summary result").when(service).invokeModel(anyString(), anyString(), anyString(), anyInt());
+
+            String result = service.dataAnalyse("test-model", Map.of(), "total revenue", "{}", "summary");
+            assertEquals("Summary result", result);
+        }
+    }
+
+    @Nested
     @DisplayName("resolveModel 模型解析")
     class ModelResolutionTests {
 
@@ -158,9 +198,7 @@ class BedrockLlmServiceTest {
         void shouldUseDefaultModel() {
             doReturn("{}").when(service).invokeModel(eq("test-model"), anyString(), anyString(), anyInt());
 
-            // 傳空 modelId，應用預設 "test-model"
             service.knowledgeSearch("test", "", Map.of());
-            // 不 throw 就是成功
         }
     }
 }
